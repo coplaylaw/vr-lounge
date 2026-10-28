@@ -67,7 +67,7 @@ const TEXT = {
         color: CVI.cyan,
         item: 'blocks',
         title: 'Hvem er vi?',
-        body: 'CO:PLAY er et advokatfirma, der kombinerer juridisk rådgivning med teknologi. Skriv jeres egen præsentation her.',
+        body: 'CO:PLAY er et advokatfirma, der kombinerer juridisk rådgivning med teknologi.',
         play: { title: 'Byg løs', body: 'Kan du stable klodserne, så der står CO:PLAY? Du må også gerne kaste dem efter mig.' },
       },
       {
@@ -161,7 +161,7 @@ const TEXT = {
         color: CVI.cyan,
         item: 'blocks',
         title: 'Who are we?',
-        body: 'CO:PLAY is a law firm that combines legal advice with technology. Write your own introduction here.',
+        body: 'CO:PLAY is a law firm that combines legal advice with technology.',
         play: { title: 'Build away', body: 'Can you stack the blocks so they spell CO:PLAY? You are also welcome to throw them at me.' },
       },
       {
@@ -226,6 +226,29 @@ export function setLanguage(id) {
 }
 
 setLanguage('da');
+
+// Hver replik får et lydspor (voice/<navn>-<sprog>), hvis den ikke har et i forvejen,
+// fx voice/topic-2-play-en. tools/generate_voice.mjs indtaler de spor, der mangler.
+const VOICE_NAMES = {
+  INTRO: 'intro', HIGH_FIVE: 'highfive', HIGH_FIVE_DONE: 'highfive-done', DISK_HINT: 'disk-hint',
+  NEXT_DISK: 'next-disk', TOPICS: 'topic', HIT_LINES: 'hit', HINTS: 'hint', OUTRO: 'outro',
+};
+export const VOICE_LINES = []; // { voice, lang, text } til generatoren
+for (const [lang, text] of Object.entries(TEXT)) {
+  const add = (line, name) => {
+    line.voice ??= `voice/${name}-${lang}`;
+    const title = /[.!?]$/.test(line.title) ? line.title : `${line.title}.`;
+    VOICE_LINES.push({ voice: line.voice, lang, text: `${title} ${line.body}` });
+  };
+  for (const [key, name] of Object.entries(VOICE_NAMES)) {
+    const value = text[key];
+    [].concat(value).forEach((line, i) => {
+      const lineName = Array.isArray(value) ? `${name}-${i + 1}` : name;
+      add(line, lineName);
+      if (line.play) add(line.play, `${lineName}-play`);
+    });
+  }
+}
 
 // Alle indtalte replikker på begge sprog, så de kan hentes på forhånd.
 export const VOICE_FILES = [];

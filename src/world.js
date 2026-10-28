@@ -340,8 +340,8 @@ function buildRoom(stage, physics, glowTex, animated) {
     light.cylinder(x, z, 0.16, 0, 0.05, 0.6);
   }
 
-  // Sort gulvlampe med stor skærm.
-  const lamp = { x: -2.25, z: -3.45 };
+  // Sort gulvlampe med stor skærm, mellem det midterste og det højre vindue.
+  const lamp = { x: 1.5, z: -3.45 };
   kit.add(new THREE.CylinderGeometry(0.16, 0.16, 0.025, 24), M.blackMatte, at(lamp.x, 0.0125, lamp.z));
   kit.add(new THREE.CylinderGeometry(0.012, 0.012, 1.7, 8), M.blackMatte, at(lamp.x, 0.85, lamp.z));
   kit.add(new THREE.CylinderGeometry(0.28, 0.32, 0.3, 32, 1, true), new THREE.MeshLambertMaterial({ color: 0x1b1c1f, side: THREE.DoubleSide }), at(lamp.x, 1.75, lamp.z));

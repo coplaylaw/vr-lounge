@@ -48,7 +48,7 @@ export function createLetterBlock(physics, letter, index, position) {
   );
   mesh.position.copy(position);
   return physics.add(mesh, new CANNON.Box(new CANNON.Vec3(BLOCK / 2, BLOCK / 2, BLOCK / 2)), {
-    mass: 0.12, kind: 'block', radius: 0.05,
+    mass: 0.12, kind: 'block', radius: 0.05, material: physics.blockMaterial,
   });
 }
 

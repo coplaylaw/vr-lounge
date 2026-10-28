@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { CANNON } from './physics.js';
 import { signTexture, beamMaterial } from './materials.js';
 import { CVI } from './palette.js';
+import { SIGN } from './content.js';
 
 export const DESK_TOP = 0.72;
 export const DESK = { width: 1.5, depth: 0.45, z: -0.62 };
@@ -62,12 +63,12 @@ export class Desk {
     );
     this.slotGlow.position.set(0, 0.158, 0.131);
     printer.add(this.slotGlow);
-    const sign = new THREE.Mesh(
+    this.sign = new THREE.Mesh(
       new THREE.PlaneGeometry(0.2, 0.0375),
-      new THREE.MeshBasicMaterial({ map: signTexture('INDSÆT DISKETTE'), toneMapped: false }),
+      new THREE.MeshBasicMaterial({ map: signTexture(SIGN), toneMapped: false }),
     );
-    sign.position.set(0, 0.075, 0.131);
-    printer.add(sign);
+    this.sign.position.set(0, 0.075, 0.131);
+    printer.add(this.sign);
     const roof = new THREE.Mesh(
       new THREE.BoxGeometry(0.2, 0.004, 0.16),
       new THREE.MeshBasicMaterial({ color: CVI.cyan, transparent: true, opacity: 0.6, toneMapped: false }),
@@ -97,6 +98,13 @@ export class Desk {
     this.slotFront = PRINTER.clone().add(new THREE.Vector3(0, 0.14, 0.15));
     this.slotInside = PRINTER.clone().add(new THREE.Vector3(0, 0.14, 0.0));
     this.printTime = -1;
+  }
+
+  // Skiltet på maskinen skifter med sproget.
+  setSign(text) {
+    const material = this.sign.material;
+    material.map.dispose();
+    material.map = signTexture(text);
   }
 
   startPrint() {

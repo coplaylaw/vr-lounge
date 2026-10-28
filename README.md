@@ -42,7 +42,7 @@ adb -s <serienummer> shell am start -a android.intent.action.VIEW -d http://loca
 
 ## Ret tekster og indhold
 
-- Alle tekster: [src/content.js](src/content.js)
+- Alle tekster på dansk og engelsk: [src/content.js](src/content.js). Sprogknapperne: [src/language.js](src/language.js)
 - Robotten og talebobblen: [src/robot.js](src/robot.js)
 - Bordet, maskinen og printpladen: [src/desk.js](src/desk.js)
 - Disketter, klodser, kanon, kaffe, skydeskiver, konfetti og sommerfugle: [src/items.js](src/items.js)
@@ -66,10 +66,10 @@ Lydene afspilles af [src/audio.js](src/audio.js) med rumlig lyd, så de kommer f
 
 ## Opførsel
 
-- Velkomst, high five (springes over efter 14 sekunder), derefter én diskette ad gangen. Har gæsten prøvet alle fire, kommer en afslutning, og disketterne fortsætter i ring.
+- Gæsten vælger først dansk eller engelsk ved at røre en af de to knapper over bordet (eller klikke på den i den flade visning). Derefter velkomst, high five (springes over efter 14 sekunder) og én diskette ad gangen. Har gæsten prøvet alle fire, kommer en afslutning, og disketterne fortsætter i ring.
 - Ryger en diskette på gulvet, kaster robotten en ny efter 8 sekunder.
 - Rører gæsten ikke noget i 30 sekunder, kommer et tip.
-- Tages headsettet af i mere end 15 sekunder, ryddes bordet, og oplevelsen starter forfra for næste gæst.
+- Tages headsettet af i mere end 15 sekunder, ryddes bordet, og oplevelsen starter forfra med sprogvalget for næste gæst.
 - Scenen drejes, så robotten altid står foran gæsten, når VR starter, eller når brillerne centreres igen.
 
 ## Fejlfinding

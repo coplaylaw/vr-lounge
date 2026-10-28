@@ -10,8 +10,10 @@ import {
 import { Input } from './input.js';
 import { Sound } from './audio.js';
 import { glowTexture } from './materials.js';
+import { LanguageButtons } from './language.js';
 import {
-  SPEAKER, INTRO, HIGH_FIVE, HIGH_FIVE_DONE, DISK_HINT, NEXT_DISK, TOPICS, HIT_LINES, HINTS, OUTRO,
+  SPEAKER, LANGUAGE_PROMPT, setLanguage, SIGN,
+  INTRO, HIGH_FIVE, HIGH_FIVE_DONE, DISK_HINT, NEXT_DISK, TOPICS, HIT_LINES, HINTS, OUTRO,
 } from './content.js';
 
 const LINE_PAUSE = 3; // sekunder mellem robottens linjer
@@ -56,6 +58,7 @@ const projectiles = new Projectiles(stage, physics);
 const targets = new Targets(stage);
 const confetti = new Confetti(stage);
 const butterflies = new Butterflies(stage);
+const languageButtons = new LanguageButtons(stage);
 const sound = new Sound(stage);
 const clock = new THREE.Clock();
 const now = () => clock.elapsedTime;
@@ -194,11 +197,24 @@ const story = {
     robot.reset();
 
     Object.assign(this, {
-      phase: 'intro', queue: [], idle: 0, hint: 0, hits: 0, phaseTime: 0,
+      phase: 'language', queue: [], idle: 0, hint: 0, hits: 0, phaseTime: 0,
       nextDisk: 0, nextDiskAt: Infinity, disksGiven: 0, topicsSeen: new Set(), outroShown: false,
     });
+    // Hver ny gæst starter med at vælge sprog.
     robot.wave(4, now());
     sound.play('robot/wave', { at: robot.headPosition(tmp), delay: 0.4 });
+    languageButtons.show();
+    this.say(LANGUAGE_PROMPT);
+  },
+
+  chooseLanguage(id) {
+    setLanguage(id);
+    desk.setSign(SIGN);
+    languageButtons.hide();
+    robot.express('happy', 1.2, now());
+    sound.play('robot/happy', { at: robot.headPosition(tmp) });
+    this.phase = 'intro';
+    this.phaseTime = 0;
     this.say(INTRO[0]);
     for (const line of INTRO.slice(1)) this.queue.push(line);
   },
@@ -253,6 +269,14 @@ const story = {
     const since = time - panel.finishedAt;
     if (!panel.isTyping && this.queue.length && since > LINE_PAUSE) this.show(this.queue.shift());
     this.phaseTime += dt;
+
+    if (this.phase === 'language') {
+      // I VR vælges sproget ved at røre en knap. På skærmen klikkes der (se onClick).
+      const points = input.xrActive ? input.perches.map((p) => p.point) : [];
+      const id = languageButtons.update(time, points);
+      if (id) this.chooseLanguage(id);
+      return;
+    }
 
     if (this.phase === 'intro') {
       if (this.quiet && since > 1.5) {
@@ -334,8 +358,13 @@ const input = new Input({
   },
   onPull: (item) => sound.play('interact/pull', { at: item.mesh.position, volume: 0.8 }),
   onPoint: (item) => sound.play('interact/pointer-hover', { at: item.mesh.position, volume: 0.3, gap: 0.15 }),
-  // Desktop: klik på robottens hånd giver high five.
+  // Skærm: klik på en sprogknap eller på robottens hånd for high five.
   onClick: (raycaster) => {
+    if (story.phase === 'language') {
+      const id = languageButtons.pick(raycaster);
+      if (id) story.chooseLanguage(id);
+      return Boolean(id);
+    }
     if (story.phase !== 'highfive') return false;
     if (!raycaster.intersectObject(robot.highFiveMesh, true).length) return false;
     story.highFive(true);
@@ -511,19 +540,20 @@ const overlay = document.getElementById('overlay');
 const startButton = document.getElementById('start');
 const flatButton = document.getElementById('flat');
 const hint = document.getElementById('hint');
-const PREVIEW_HINT = 'Træk for at kigge rundt og træk i tingene for at kaste dem. Med mus kan scrollhjulet flytte dem frem og tilbage.';
+// Startskærmen vises, før gæsten har valgt sprog, så den er på begge sprog.
+const PREVIEW_HINT = 'Træk for at kigge rundt og kaste ting. Drag to look around and throw things.';
 // Telefoner siger også ja til VR (Cardboard), så kun Quest-browseren starter i VR som standard.
 const isQuest = /OculusBrowser|Quest/i.test(navigator.userAgent);
 let vrSupported = false;
 
-startButton.textContent = isQuest ? 'Start oplevelsen' : 'Se oplevelsen';
+startButton.textContent = 'Start';
 startButton.addEventListener('click', () => (vrSupported && isQuest ? startVR() : startPreview()));
 flatButton.addEventListener('click', () => (isQuest ? startPreview() : startVR()));
 
 if (navigator.xr) {
   navigator.xr.isSessionSupported('immersive-vr').then((ok) => {
     vrSupported = ok;
-    if (ok) flatButton.textContent = isQuest ? 'Se uden VR' : 'Start i VR';
+    if (ok) flatButton.textContent = isQuest ? 'Uden VR · Without VR' : 'VR';
     flatButton.hidden = !ok;
     if (!ok || !isQuest) hint.textContent = PREVIEW_HINT;
   });
@@ -548,7 +578,7 @@ async function startVR() {
     });
     await renderer.xr.setSession(session);
   } catch (err) {
-    hint.textContent = `Kunne ikke starte VR: ${err.message}`;
+    hint.textContent = `Kunne ikke starte VR · Could not start VR: ${err.message}`;
   }
 }
 
@@ -622,7 +652,7 @@ function simulate(time, dt) {
 
 // Til fejlfinding i browserens konsol. advance(sek) spoler tiden frem uden at tegne.
 window.lounge = {
-  story, physics, input, robot, targets, butterflies, desk, printItem, dispenseDisk, startInsert, renderer, sound,
+  story, physics, input, robot, targets, butterflies, desk, languageButtons, printItem, dispenseDisk, startInsert, renderer, sound,
   advance(seconds) {
     for (let t = 0; t < seconds; t += 1 / 60) {
       clock.elapsedTime += 1 / 60;

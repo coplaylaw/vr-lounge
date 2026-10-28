@@ -1,6 +1,6 @@
 # CO:PLAY Lounge
 
-En kort VR-oplevelse til de to Quest 2-headset i receptionen, stærkt inspireret af Oculus' "First Contact". Gæsten sidder øverst i CO:PLAY-urtårnet ved et bord med udsigt over en neonby. Robotten CO:BOT byder velkommen, beder om en high five og kaster disketter over bordet. Når en diskette stikkes ind i maskinen, fortæller robotten om et emne, og maskinen printer noget at lege med:
+En kort VR-oplevelse til de to Quest 2-headset i receptionen, stærkt inspireret af Oculus' "First Contact". Gæsten sidder ved et bord i en virtuel udgave af CO:PLAYs reception med søjlerne, glasvæggene, den blå skranke, neonskiltet og elgmaleriet. Ud ad vinduerne ses en by i blå time med svævetog. Robotten CO:BOT byder velkommen, beder om en high five og kaster disketter over bordet. Når en diskette stikkes ind i maskinen, fortæller robotten om et emne, og maskinen printer noget at lege med:
 
 | Diskette | Printer |
 | --- | --- |
@@ -48,7 +48,8 @@ adb -s <serienummer> shell am start -a android.intent.action.VIEW -d http://loca
 - Disketter, klodser, kanon, kaffe, skydeskiver, konfetti og sommerfugle: [src/items.js](src/items.js)
 - Greb og kast: [src/input.js](src/input.js), fysik: [src/physics.js](src/physics.js)
 - Forløbet: [src/main.js](src/main.js)
-- Rummet og byen: [src/world.js](src/world.js)
+- Rummet og byen: [src/world.js](src/world.js), teksturer: [src/materials.js](src/materials.js)
+- CVI-farverne: [src/palette.js](src/palette.js). Brug dem herfra i stedet for at skrive hex-koder. Logoet ligger i [assets/coplay-logo.png](assets/coplay-logo.png).
 
 ## Opførsel
 

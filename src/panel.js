@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CVI } from './palette.js';
 
 const W = 1024;
 const H = 512;
@@ -73,20 +74,20 @@ export class SpeechPanel {
     const g = this.ctx;
     g.clearRect(0, 0, W, H);
 
-    g.fillStyle = 'rgba(5, 11, 24, 0.82)';
+    g.fillStyle = 'rgba(21, 37, 62, 0.92)'; // CVI-navy
     g.beginPath();
     g.roundRect(8, 8, W - 16, H - 16, 36);
     g.fill();
     g.save();
-    g.strokeStyle = '#36d6ff';
-    g.shadowColor = '#36d6ff';
+    g.strokeStyle = CVI.cyan;
+    g.shadowColor = CVI.cyan;
     g.shadowBlur = 16;
     g.lineWidth = 4;
     g.stroke();
     g.restore();
 
     g.textBaseline = 'top';
-    g.fillStyle = '#36d6ff';
+    g.fillStyle = CVI.cyan;
     g.font = '600 28px "Segoe UI", Roboto, sans-serif';
     g.fillText(this.speaker.toUpperCase(), PAD, 40);
 
@@ -94,7 +95,7 @@ export class SpeechPanel {
     g.font = '700 52px "Segoe UI", Roboto, sans-serif';
     g.fillText(this.title, PAD, 84);
 
-    g.fillStyle = '#d8ecff';
+    g.fillStyle = '#e8eef5';
     g.font = '40px "Segoe UI", Roboto, sans-serif';
     let left = chars;
     this.lines.forEach((line, i) => {

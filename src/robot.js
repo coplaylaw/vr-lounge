@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { CANNON } from './physics.js';
 import { beamMaterial } from './materials.js';
 import { SpeechPanel } from './panel.js';
+import { CVI, CYAN_LIGHT } from './palette.js';
 
 const HOME = new THREE.Vector3(0, 1.22, -1.15);
 // Hvor robotten holder hånden frem til high five: inden for rækkevidde af en siddende gæst.
@@ -16,9 +17,9 @@ export class Robot {
     this.group.position.copy(HOME);
     stage.add(this.group);
 
-    const shell = new THREE.MeshLambertMaterial({ color: 0xe8eef5 });
-    const dark = new THREE.MeshLambertMaterial({ color: 0x141b28 });
-    const cyan = new THREE.MeshBasicMaterial({ color: 0x36d6ff, toneMapped: false });
+    const shell = new THREE.MeshLambertMaterial({ color: 0xeef1f4 });
+    const dark = new THREE.MeshLambertMaterial({ color: CVI.navy });
+    const cyan = new THREE.MeshBasicMaterial({ color: CVI.cyan, toneMapped: false });
 
     this.head = new THREE.Group();
     this.group.add(this.head);
@@ -51,12 +52,12 @@ export class Robot {
     this.head.add(antenna);
     const bulb = new THREE.Mesh(
       new THREE.SphereGeometry(0.018, 16, 8),
-      new THREE.MeshBasicMaterial({ color: 0xffb45e, toneMapped: false }),
+      new THREE.MeshBasicMaterial({ color: CVI.orange, toneMapped: false }),
     );
     bulb.position.y = 0.195;
     this.head.add(bulb);
     const bulbGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: glowTex, color: 0xffb45e, transparent: true, opacity: 0.6,
+      map: glowTex, color: CVI.orange, transparent: true, opacity: 0.6,
       blending: THREE.AdditiveBlending, depthWrite: false,
     }));
     bulbGlow.scale.setScalar(0.12);
@@ -71,7 +72,7 @@ export class Robot {
     body.add(slot);
     this.slotLight = new THREE.Mesh(
       new THREE.BoxGeometry(0.11, 0.004, 0.004),
-      new THREE.MeshBasicMaterial({ color: 0x36d6ff, transparent: true, toneMapped: false }),
+      new THREE.MeshBasicMaterial({ color: CVI.cyan, transparent: true, toneMapped: false }),
     );
     this.slotLight.position.set(0, 0.032, 0.062);
     body.add(this.slotLight);
@@ -83,7 +84,7 @@ export class Robot {
     body.add(thruster);
     const flame = new THREE.Mesh(
       new THREE.CylinderGeometry(0.03, 0.1, 0.35, 16, 1, true),
-      beamMaterial('#36d6ff', 0.3),
+      beamMaterial(CVI.cyan, 0.3),
     );
     flame.position.y = -0.27;
     body.add(flame);
@@ -101,8 +102,7 @@ export class Robot {
       return hand;
     });
     this.handGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: glowTex, color: 0x36d6ff, transparent: true, opacity: 0,
-      blending: THREE.AdditiveBlending, depthWrite: false,
+      map: glowTex, color: CVI.cyan, transparent: true, opacity: 0, depthWrite: false,
     }));
     this.handGlow.scale.setScalar(0.3);
     this.hands[1].add(this.handGlow);
@@ -251,14 +251,14 @@ export class Robot {
   drawFace(expression, blinking, mouth) {
     const g = this.faceCanvas.getContext('2d');
     g.clearRect(0, 0, 256, 160);
-    g.fillStyle = '#07111f';
+    g.fillStyle = CVI.navy;
     g.beginPath();
     g.roundRect(0, 0, 256, 160, 28);
     g.fill();
 
     g.save();
-    g.fillStyle = g.strokeStyle = '#5fe6ff';
-    g.shadowColor = '#36d6ff';
+    g.fillStyle = g.strokeStyle = CYAN_LIGHT;
+    g.shadowColor = CVI.cyan;
     g.shadowBlur = 14;
     g.lineWidth = 10;
     g.lineCap = 'round';
@@ -275,8 +275,8 @@ export class Robot {
         g.lineTo(x - 18, y + 18);
         g.stroke();
       } else if (expression === 'love') {
-        g.fillStyle = '#ff7ab8';
-        g.shadowColor = '#ff7ab8';
+        g.fillStyle = CVI.orange;
+        g.shadowColor = CVI.orange;
         g.moveTo(x, y + 22);
         g.bezierCurveTo(x - 34, y - 2, x - 18, y - 30, x, y - 12);
         g.bezierCurveTo(x + 18, y - 30, x + 34, y - 2, x, y + 22);

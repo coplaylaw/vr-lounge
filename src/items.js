@@ -166,7 +166,7 @@ export class Projectiles {
         const mesh = new THREE.Mesh(this.geometry, this.materials[this.list.length % this.materials.length]);
         const body = new CANNON.Body({ mass: 0.02, shape: this.shape, linearDamping: 0.01 });
         shot = { mesh, body, life: 0 };
-        body.addEventListener('collide', () => this.onImpact?.(shot));
+        body.addEventListener('collide', (e) => this.onImpact?.(shot, e.body.userData?.surface));
         this.list.push(shot);
       }
     }

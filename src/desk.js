@@ -19,6 +19,7 @@ export class Desk {
     );
     top.position.set(0, DESK_TOP - 0.02, DESK.z);
     stage.add(top);
+    this.top = top; // kan stemples på
     physics.addStatic(new CANNON.Box(new CANNON.Vec3(DESK.width / 2, 0.02, DESK.depth / 2)), top.position);
 
     const cyan = new THREE.MeshBasicMaterial({ color: CVI.cyan, toneMapped: false });

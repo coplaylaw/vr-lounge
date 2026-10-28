@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 import { XRHandModelFactory } from 'three/addons/webxr/XRHandModelFactory.js';
+import { ControllerHand } from './hands.js';
 import { CVI } from './palette.js';
 
 const NEAR_GRAB = 0.07; // afstand fra hånd til tingens overflade
@@ -17,9 +17,10 @@ const _q = new THREE.Quaternion();
 const _s = new THREE.Vector3();
 
 // Greb og kast med controllere (grebknap eller aftrækker), hænder (knib) og mus i desktop-visningen.
+// Holder man noget, er den anden knap "brug" (fx kameraets udløser). Med musen er det højreklik eller mellemrum.
 // Alt regnes i stage-koordinater, så det passer med fysikken.
 export class Input {
-  constructor({ renderer, scene, camera, stage, physics, onGrab, onRelease, onPull, onPoint, onClick }) {
+  constructor({ renderer, scene, camera, stage, physics, onGrab, onRelease, onPull, onPoint, onClick, onUse }) {
     this.renderer = renderer;
     this.camera = camera;
     this.stage = stage;
@@ -29,11 +30,12 @@ export class Input {
     this.onPull = onPull;
     this.onPoint = onPoint;
     this.onClick = onClick;
+    this.onUse = onUse;
+    this.clickables = []; // ting i rummet, der gør noget, når man peger og trykker (fx lampen)
     this.raycaster = new THREE.Raycaster();
     this.stageInverse = new THREE.Matrix4();
     this.sources = [];
 
-    const controllerModels = new XRControllerModelFactory();
     const handModels = new XRHandModelFactory();
     const rayGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]);
 
@@ -44,8 +46,8 @@ export class Input {
       controller.add(ray);
       scene.add(controller);
 
+      // Controlleren vises som en hånd (se hands.js). Den laves, når vi ved, om det er venstre eller højre.
       const grip = renderer.xr.getControllerGrip(i);
-      grip.add(controllerModels.createControllerModel(grip));
       scene.add(grip);
 
       const hand = renderer.xr.getHand(i);
@@ -58,7 +60,14 @@ export class Input {
       controller.addEventListener('connected', (e) => {
         source.active = true;
         source.isHand = Boolean(e.data.hand);
+        source.inputSource = e.data;
         source.history.length = 0;
+        if (!source.isHand && source.handModel?.handedness !== e.data.handedness) {
+          source.handModel?.group.removeFromParent();
+          source.handModel = new ControllerHand(e.data.handedness);
+          source.handModel.handedness = e.data.handedness;
+          grip.add(source.handModel.group);
+        }
       });
       controller.addEventListener('disconnected', () => {
         this.release(source, null);
@@ -66,7 +75,10 @@ export class Input {
         ray.visible = false;
       });
       for (const button of ['select', 'squeeze']) {
-        controller.addEventListener(`${button}start`, () => this.grab(source, button));
+        controller.addEventListener(`${button}start`, () => {
+          if (source.held && source.heldButton !== button) this.onUse?.(source.held, source);
+          else this.grab(source, button);
+        });
         controller.addEventListener(`${button}end`, () => this.release(source, button));
       }
     }
@@ -112,8 +124,17 @@ export class Input {
 
   // --- Greb ---
 
+  // Peg på mesh og tryk, så kaldes onClick(source). Rammes en undermesh, tæller den også.
+  addClickable(mesh, onClick) {
+    this.clickables.push({ mesh, onClick });
+  }
+
   grab(source, button) {
     if (source.held || source.pulling || !source.target) return;
+    if (source.target.clickable) {
+      source.target.clickable.onClick(source);
+      return;
+    }
     const { item, mode } = source.target;
     const other = this.sources.find((s) => s.held === item || s.pulling?.item === item);
     if (other) this.release(other, null, { gentle: true });
@@ -193,11 +214,23 @@ export class Input {
     this.pitch = -0.45;
     let look = null;
     const track = (e) => this.ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+    addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && this.mouse.held) this.onUse?.(this.mouse.held, this.mouse);
+    });
     el.addEventListener('pointerdown', (e) => {
       track(e);
+      if (e.button === 2) {
+        if (this.mouse.held) this.onUse?.(this.mouse.held, this.mouse);
+        return;
+      }
       el.setPointerCapture(e.pointerId);
       this.updateMousePose(0);
       this.findTarget(this.mouse);
+      if (this.mouse.target?.clickable) {
+        this.grab(this.mouse, 'mouse');
+        return;
+      }
       if (this.mouse.target) {
         this.mouse.distance = THREE.MathUtils.clamp(this.mouse.target.distance, 0.3, 1.4);
         this.updateMousePose(0);
@@ -216,7 +249,8 @@ export class Input {
       this.pitch = THREE.MathUtils.clamp(this.pitch + (e.clientY - look.y) * 0.004, -1.3, 1.2);
       look = { x: e.clientX, y: e.clientY };
     });
-    el.addEventListener('pointerup', () => {
+    el.addEventListener('pointerup', (e) => {
+      if (e.button === 2) return;
       this.release(this.mouse, 'mouse');
       look = null;
     });
@@ -257,7 +291,8 @@ export class Input {
       this.track(this.mouse, time);
       this.updateHeld(this.mouse, dt);
       if (!this.mouse.held) this.findTarget(this.mouse);
-      this.renderer.domElement.style.cursor = this.mouse.held ? 'grabbing' : this.mouse.target ? 'grab' : 'default';
+      const over = this.mouse.target?.clickable ? 'pointer' : this.mouse.target ? 'grab' : 'default';
+      this.renderer.domElement.style.cursor = this.mouse.held ? 'grabbing' : over;
       return;
     }
 
@@ -281,6 +316,10 @@ export class Input {
       this.updateHeld(source, dt);
       if (!source.held && !source.pulling) this.findTarget(source);
       else source.target = null;
+      if (source.handModel) {
+        source.handModel.group.visible = !source.isHand;
+        source.handModel.update(source.inputSource?.gamepad, Boolean(source.held || source.pulling), dt);
+      }
 
       // Strålen vises svagt, og tydeligt når den peger på noget, der kan hentes.
       const far = source.target?.mode === 'ray';
@@ -344,17 +383,20 @@ export class Input {
       this.raycaster.far = RAY_LENGTH;
       const meshes = [];
       for (const item of this.physics.items) if (!item.frozen && !item.heldBy) meshes.push(item.mesh);
+      for (const c of this.clickables) meshes.push(c.mesh);
       const hit = this.raycaster.intersectObjects(meshes, true)[0];
       if (hit) {
         let obj = hit.object;
         while (obj && !meshes.includes(obj)) obj = obj.parent;
         const item = [...this.physics.items].find((it) => it.mesh === obj);
+        const clickable = this.clickables.find((c) => c.mesh === obj);
         if (item) best = { item, mode: 'ray', distance: hit.distance };
+        else if (clickable) best = { clickable, mode: 'ray', distance: hit.distance };
       }
       this.raycaster.far = Infinity;
     }
-    if (best?.mode === 'ray' && best.item !== source.target?.item) this.onPoint?.(best.item, source);
+    if (best?.item && best.mode === 'ray' && best.item !== source.target?.item) this.onPoint?.(best.item, source);
     source.target = best;
-    if (best) best.item.highlight = true;
+    if (best?.item) best.item.highlight = true;
   }
 }

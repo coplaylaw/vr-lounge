@@ -607,3 +607,121 @@ export function beamMaterial(color = CVI.cyan, strength = 0.35, { invert = false
     blending: THREE.AdditiveBlending,
   });
 }
+
+// --- Papir, stempel og kamera ---
+
+const FONT = '"Segoe UI", Roboto, sans-serif';
+
+// Aftalen, der skal stemples. Feltet nederst til højre er der, hvor stemplet skal sidde.
+export function contractTexture() {
+  const [c, g] = makeCanvas(360, 512);
+  g.fillStyle = '#fbfaf6';
+  g.fillRect(0, 0, 360, 512);
+  g.fillStyle = CVI.navy;
+  g.fillRect(0, 0, 360, 10);
+  g.textBaseline = 'top';
+  g.font = `700 15px ${FONT}`;
+  g.fillStyle = CVI.blue;
+  g.fillText('CO:PLAY ADVOKATPARTNERSELSKAB', 28, 30);
+  g.font = `800 34px ${FONT}`;
+  g.fillStyle = CVI.navy;
+  g.fillText('Aftale om leg', 28, 56);
+  g.font = `15px ${FONT}`;
+  g.fillStyle = '#4a5466';
+  const lines = [
+    '§ 1. Gæsten må gribe, kaste og stable',
+    'alt, hvad der står på bordet.',
+    '§ 2. Det er tilladt at ramme CO:BOT,',
+    'så længe det er med noget blødt.',
+    '§ 3. Kaffen er virtuel og kan ikke',
+    'spildes på tøjet.',
+    '§ 4. Aftalen træder i kraft, når den',
+    'er stemplet nedenfor.',
+  ];
+  lines.forEach((line, i) => g.fillText(line, 28, 116 + i * 26 + (i % 2 ? 0 : 8)));
+  g.strokeStyle = '#c9ced8';
+  g.lineWidth = 2;
+  g.setLineDash([8, 6]);
+  g.strokeRect(190, 350, 140, 130);
+  g.setLineDash([]);
+  g.font = `600 13px ${FONT}`;
+  g.fillStyle = '#8a93a3';
+  g.fillText('Stempel', 236, 486);
+  g.beginPath();
+  g.moveTo(28, 440);
+  g.lineTo(160, 440);
+  g.stroke();
+  g.fillText('Underskrift', 28, 448);
+  return canvasTexture(c);
+}
+
+// Stemplets aftryk: rød ring med GODKENDT og logoets "CO:". Gennemsigtig baggrund.
+export function stampTexture() {
+  const [c, g] = makeCanvas(256, 256);
+  const tex = canvasTexture(c);
+  const draw = (img) => {
+    g.clearRect(0, 0, 256, 256);
+    g.strokeStyle = g.fillStyle = CVI.orange;
+    g.lineWidth = 12;
+    g.beginPath();
+    g.arc(128, 128, 112, 0, Math.PI * 2);
+    g.stroke();
+    g.lineWidth = 4;
+    g.beginPath();
+    g.arc(128, 128, 92, 0, Math.PI * 2);
+    g.stroke();
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.font = `900 34px ${FONT}`;
+    g.fillText('GODKENDT', 128, 166);
+    if (img) {
+      const logo = tintedLogo(img, CVI.orange, 64, LOGO_CO_WIDTH);
+      g.drawImage(logo, 128 - logo.width / 2, 72);
+    } else {
+      g.font = `900 60px ${FONT}`;
+      g.fillText('CO:', 128, 104);
+    }
+    // Lidt ujævnt blæk.
+    g.globalCompositeOperation = 'destination-out';
+    const rnd = seededRandom(7);
+    for (let i = 0; i < 260; i++) {
+      g.globalAlpha = 0.25 + rnd() * 0.5;
+      g.beginPath();
+      g.arc(rnd() * 256, rnd() * 256, 1 + rnd() * 3, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+  };
+  draw(null);
+  withLogo(tex, draw);
+  return tex;
+}
+
+// Krøllet papir med svage linjer, til papirkugler og papirfly.
+export function paperTexture() {
+  const [c, g] = makeCanvas(128, 128);
+  g.fillStyle = '#f7f6f1';
+  g.fillRect(0, 0, 128, 128);
+  g.fillStyle = '#c3c9d4';
+  for (let y = 14; y < 128; y += 12) g.fillRect(10, y, 108, 2);
+  g.fillStyle = CVI.cyan;
+  g.fillRect(0, 0, 128, 4);
+  return canvasTexture(c, { repeat: true });
+}
+
+// Den hvide kant om et polaroidbillede med dato og CO:PLAY nederst.
+export function photoFrameTexture() {
+  const [c, g] = makeCanvas(256, 308);
+  g.fillStyle = '#fbfbf8';
+  g.fillRect(0, 0, 256, 308);
+  g.fillStyle = CVI.navy;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = `700 22px ${FONT}`;
+  g.fillText('CO:PLAY Lounge', 128, 268);
+  g.font = `14px ${FONT}`;
+  g.fillStyle = '#7d8696';
+  g.fillText(new Date().toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' }), 128, 292);
+  return canvasTexture(c);
+}

@@ -21,12 +21,13 @@ export class LightBaker {
   }
 
   // Lys med en kegle omkring dir. power styrer, hvor hurtigt lyset aftager væk fra midten.
-  light(position, color, intensity, { dir = [0, -1, 0], cutoff = 0.3, power = 2, shadows = true } = {}) {
+  // Lys med en group (fx 'lamp') bages for sig, så de kan tændes og slukkes bagefter (se withSwitchedLight).
+  light(position, color, intensity, { dir = [0, -1, 0], cutoff = 0.3, power = 2, shadows = true, group = null } = {}) {
     const c = new THREE.Color(color);
     this.lights.push({
       x: position[0], y: position[1], z: position[2],
       r: c.r * intensity, g: c.g * intensity, b: c.b * intensity,
-      dir, cutoff, power, shadows,
+      dir, cutoff, power, shadows, group,
     });
   }
 
@@ -159,24 +160,28 @@ export class LightBaker {
 
   // Lyset på én flade. point(u, v) giver punktet på fladen og dens normal for u, v i 0..1.
   // ambient er det indirekte lys, ao(x, y, z) kan gøre det mørkere ved kanter og hjørner.
-  bake({ width, height, point, normal, ambient, ao = () => 1 }) {
+  // group vælger lysene: null er de faste lys, ellers kun lysene i den gruppe og uden ambient.
+  bake({ width, height, point, normal, ambient, ao = () => 1, group = null }) {
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     const g = canvas.getContext('2d');
     const img = g.createImageData(width, height);
     const [nx, ny, nz] = normal;
-    const amb = new THREE.Color(ambient);
+    const amb = new THREE.Color(group ? 0 : ambient);
+    const lights = this.lights.filter((L) => L.group === group);
     const p = [0, 0, 0];
     for (let j = 0; j < height; j++) {
       for (let i = 0; i < width; i++) {
         // Lærredets øverste række er v = 1 (CanvasTexture vendes).
         point((i + 0.5) / width, 1 - (j + 0.5) / height, p);
         const [x, y, z] = p;
-        let occ = ao(x, y, z);
-        for (const o of this.occluders) {
-          const d = LightBaker.distance(o, x, y, z);
-          if (d < 0.9) occ *= 1 - 0.55 * o.opacity * Math.exp(-d / 0.25);
+        let occ = group ? 0 : ao(x, y, z);
+        if (!group) {
+          for (const o of this.occluders) {
+            const d = LightBaker.distance(o, x, y, z);
+            if (d < 0.9) occ *= 1 - 0.55 * o.opacity * Math.exp(-d / 0.25);
+          }
         }
         let r = amb.r * occ;
         let gg = amb.g * occ;
@@ -185,7 +190,7 @@ export class LightBaker {
         const sx = x + nx * 0.01;
         const sy = y + ny * 0.01;
         const sz = z + nz * 0.01;
-        for (const L of this.lights) {
+        for (const L of lights) {
           const lx = L.x - sx;
           const ly = L.y - sy;
           const lz = L.z - sz;
@@ -220,4 +225,22 @@ export class LightBaker {
 // Materiale til en flade med bagt lys.
 export function bakedMaterial(lightMap, options = {}) {
   return new THREE.MeshBasicMaterial({ ...options, lightMap, lightMapIntensity: LIGHTMAP_INTENSITY });
+}
+
+// Lægger lyset fra en gruppe lys (bagt med group) oven i lightmappet med en styrke, der kan ændres
+// mens oplevelsen kører. Kortet skal være bagt over den samme flade og have samme repeat og offset.
+export function withSwitchedLight(material, map, level) {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.switchedMap = { value: map };
+    shader.uniforms.switchedLevel = level;
+    shader.fragmentShader = shader.fragmentShader
+      .replace('void main() {', 'uniform sampler2D switchedMap;\nuniform float switchedLevel;\nvoid main() {')
+      .replace(
+        'reflectedLight.indirectDiffuse += lightMapTexel.rgb * lightMapIntensity * RECIPROCAL_PI;',
+        'reflectedLight.indirectDiffuse += ( lightMapTexel.rgb + texture2D( switchedMap, vLightMapUv ).rgb * switchedLevel ) * lightMapIntensity * RECIPROCAL_PI;',
+      );
+  };
+  material.customProgramCacheKey = () => 'switched-light';
+  material.needsUpdate = true;
+  return material;
 }

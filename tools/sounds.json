@@ -91,6 +91,29 @@
 
     {"file": "coffee/steam-loop.mp3", "duration": 5, "loop": true, "prompt": "Very soft gentle steam rising from a hot cup of coffee, quiet airy hiss"},
     {"file": "coffee/slosh.mp3", "duration": 0.8, "prompt": "Coffee sloshing inside a ceramic mug as it is moved, small liquid swirl"},
-    {"file": "coffee/sip.mp3", "duration": 1, "prompt": "Person taking a small sip of hot coffee from a mug, satisfied soft ahh"}
+    {"file": "coffee/sip.mp3", "duration": 1, "prompt": "Person taking a small sip of hot coffee from a mug, satisfied soft ahh"},
+
+    {"file": "camera/shutter.mp3", "duration": 0.8, "prompt": "Instant polaroid camera shutter, crisp mechanical click with a short flash charge whine"},
+    {"file": "camera/eject.mp3", "duration": 1.5, "prompt": "Instant camera motor pushing out a photo print, short smooth whirring buzz"},
+    {"file": "camera/develop.mp3", "duration": 1.5, "prompt": "Soft magical shimmer as an instant photo slowly develops, gentle rising twinkle"},
+    {"file": "stamp/stamp-1.mp3", "duration": 0.5, "prompt": "Heavy rubber stamp thumped firmly down on a sheet of paper on a desk, solid thunk"},
+    {"file": "stamp/stamp-2.mp3", "duration": 0.5, "prompt": "Office rubber stamp pressed hard onto paper, short punchy thud with a slight ink squish"},
+    {"file": "stamp/approved.mp3", "duration": 1.2, "prompt": "Cheerful short approval jingle, bright two-note success chime"},
+    {"file": "paper/rustle.mp3", "duration": 0.8, "prompt": "Single sheet of paper picked up and rustled briefly"},
+    {"file": "paper/crumple.mp3", "duration": 1.0, "prompt": "Sheet of paper crumpled into a ball by hand, crisp crinkling"},
+    {"file": "paper/plane-whoosh.mp3", "duration": 1.2, "prompt": "Paper airplane gliding fast past the ear, soft airy swish"},
+    {"file": "paper/bin-score.mp3", "duration": 1.5, "prompt": "Paper ball dropping into a metal wastebasket with a soft rattle, followed by a cheerful arcade score chime"},
+    {"file": "paper/bin-rim.mp3", "duration": 0.6, "prompt": "Paper ball bouncing off the rim of a metal wastebasket, light tinny clang"},
+    {"file": "props/painting-swing.mp3", "duration": 1.5, "prompt": "Heavy wooden picture frame knocked on a wall, swinging and scraping against the plaster with a short creak"},
+    {"file": "props/vase-topple.mp3", "duration": 1.5, "prompt": "Ceramic flower vase knocked over onto a wooden counter, rolling clatter, does not break"},
+    {"file": "props/neon-flicker.mp3", "duration": 2.0, "prompt": "Neon sign electrically flickering and buzzing with sparking crackles, then stabilizing"},
+    {"file": "props/lamp-switch.mp3", "duration": 0.5, "prompt": "Pull-chain floor lamp switch, small metallic click"},
+    {"file": "props/headset-on.mp3", "duration": 1.5, "prompt": "Futuristic VR headset powering on, short rising digital chime with soft whoosh"},
+    {"file": "robot/fix.mp3", "duration": 1.5, "prompt": "Small cute robot servo motors tinkering, quick mechanical clicks and a satisfied happy beep"},
+    {"file": "robot/fly.mp3", "duration": 1.2, "prompt": "Small hovering robot zooming quickly across a room, soft jet whoosh"},
+    {"file": "impact/paper-1.mp3", "duration": 0.5, "prompt": "Light sheet of paper or paper ball landing softly on a table, faint papery tap"},
+    {"file": "impact/paper-2.mp3", "duration": 0.5, "prompt": "Crumpled paper ball hitting the floor, soft light crinkly thud"},
+    {"file": "impact/plastic-1.mp3", "duration": 0.5, "prompt": "Small hard plastic gadget clattering onto a table"},
+    {"file": "impact/plastic-2.mp3", "duration": 0.5, "prompt": "Small plastic device dropped on a floor, short hollow clack"}
   ]
 }

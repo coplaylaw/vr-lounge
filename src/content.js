@@ -69,6 +69,61 @@ export const TOPICS = [
   },
 ];
 
+// Bonusdisketter, som robotten deler ud på én gang, når gæsten har prøvet alle de første.
+// item: camera | stamp | plane | paperballs
+export const BONUS_TOPICS = [
+  {
+    label: 'Smil!',
+    color: CVI.navy,
+    item: 'camera',
+    title: 'Et minde fra CO:PLAY',
+    body: 'Vi kan godt lide at mødes, også når det er virtuelt. Lad os tage et billede sammen.',
+    play: { title: 'Sig cheese', body: 'Grib kameraet og tryk på den anden knap, eller den røde knap ovenpå. Vend det mod dig selv, så kommer jeg med på billedet.' },
+  },
+  {
+    label: 'Godkendt',
+    color: CVI.orange,
+    item: 'stamp',
+    title: 'Jura i praksis',
+    body: 'Meget af vores arbejde handler om aftaler, der skal på plads. Her er en, du selv kan godkende.',
+    play: { title: 'Stempl den', body: 'Tag stemplet og tryk det ned på aftalen. Det virker også på bordet. Og på mig.' },
+  },
+  {
+    label: 'Papirfly',
+    color: CVI.cyan,
+    item: 'plane',
+    title: 'Lad papiret flyve',
+    body: 'Hos os er papirarbejdet blevet digitalt. Så kan det gamle papir lige så godt komme ud at flyve.',
+    play: { title: 'Kast blødt', body: 'Hold flyet med næsen fremad og giv slip med et roligt kast. Kan du ramme mig?' },
+  },
+  {
+    label: 'Papirkurv',
+    color: CVI.sand,
+    item: 'paperballs',
+    title: 'Ryd skrivebordet',
+    body: 'Bunker af papir hører fortiden til. Hjælp mig med at rydde op.',
+    play: { title: 'Den står bag dig', body: 'Vend dig om. Skraldespanden står bag dig. Hvor mange papirkugler kan du ramme?' },
+  },
+];
+
+export const BONUS = {
+  title: 'Bonusdisketter!',
+  body: 'Du har prøvet dem alle. Her er fire mere, og du bestemmer selv rækkefølgen.',
+};
+
+// Robottens replikker, når der sker noget med tingene.
+export const EVENTS = {
+  painting: { title: 'Hov!', body: 'Nu hænger elgen skævt. Jeg retter den lige.' },
+  vase: { title: 'Ups!', body: 'Vasen væltede. Et øjeblik, så rejser jeg den op igen.' },
+  'lamp-off': { title: 'Hyggebelysning', body: 'Peg på lampen og tryk igen, så tænder den.' },
+  headset: { title: 'VR i VR', body: 'Nu ser du dig selv gennem mit kamera. Vink til mig!' },
+  photo: { title: 'Smukt!', body: 'Tag billedet, der kommer ud af kameraet, og se det fremkalde.' },
+  contract: { title: 'Aftalen er i hus', body: 'Stemplet og godkendt. Så hurtigt kan jura også gå.' },
+  'stamp-robot': { title: 'Godkendt?', body: 'Tak, tror jeg. Nu er jeg officielt godkendt.' },
+  bin: { title: 'Kurv!', body: 'Flot skud. Kan du gøre det igen?' },
+  'bin-five': { title: 'Ryddet!', body: 'Fem kurve! Skrivebordet har aldrig været så pænt.' },
+};
+
 // Når gæsten rammer robotten med noget.
 export const HIT_LINES = [
   { title: 'Av!', body: 'Godt kast. Men jeg er altså lavet af plastik.' },

@@ -26,6 +26,10 @@ const TEXT = {
         title: 'Hej og velkommen!',
         body: 'Jeg hedder CO:BOT og passer den virtuelle reception her hos CO:PLAY.',
       },
+      {
+        title: 'Slå dig ned',
+        body: 'Du er velkommen til at hænge ud her, mens du venter på dit møde. Din vært kommer og henter dig, når det er tid.',
+      },
     ],
 
     HIGH_FIVE: {
@@ -113,6 +117,10 @@ const TEXT = {
       {
         title: 'Hi and welcome!',
         body: 'I am CO:BOT, and I look after the virtual reception here at CO:PLAY.',
+      },
+      {
+        title: 'Make yourself at home',
+        body: 'Feel free to hang out here while you wait for your meeting. Your host will come and get you when it is time.',
       },
     ],
 

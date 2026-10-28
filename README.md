@@ -50,6 +50,8 @@ adb -s <serienummer> shell am start -a android.intent.action.VIEW -d http://loca
 - Forløbet: [src/main.js](src/main.js)
 - Rummet og byen: [src/world.js](src/world.js), teksturer: [src/materials.js](src/materials.js)
 - Lyset: gulv, vægge og loft har bagt lys, som regnes ud ved start i [src/bake.js](src/bake.js). Lyskilderne (spots, gulvlampe, vinduer) og skyggekasterne sættes op i `buildRoom` i world.js, og styrken justeres i `bakeRoom`.
+- Lydniveauerne: `python3 tools/levels.py` måler alle lyde og skriver en forstærkning pr. lyd til `assets/audio/levels.json`. Kør det igen, når der kommer nye lyde, og justér målene i scriptet.
+- Kaffen: overfladen og udhældningen styres af `updateCoffee` og `CoffeeSpill` i [src/items.js](src/items.js). Rumskibet: `buildSpaceship` i world.js (`lounge.world.spaceship.fly()` sender det af sted med det samme).
 - CVI-farverne: [src/palette.js](src/palette.js). Brug dem herfra i stedet for at skrive hex-koder. Logoet ligger i [assets/coplay-logo.png](assets/coplay-logo.png).
 
 ## Musik og lydeffekter
@@ -66,6 +68,7 @@ Lydene afspilles af [src/audio.js](src/audio.js) med rumlig lyd, så de kommer f
 
 ## Opførsel
 
+- Indtil sproget er valgt, er der kun robotten, sprogknapperne og et gitter i et mørkt tomrum. Bagefter "indlæses" verdenen ud fra gæsten: først som lysende cyan gitterlinjer, der så fyldes ud ([src/reveal.js](src/reveal.js)).
 - Gæsten vælger først dansk eller engelsk ved at røre en af de to knapper over bordet (eller klikke på den i den flade visning). Derefter velkomst, high five (springes over efter 14 sekunder) og én diskette ad gangen. Har gæsten prøvet alle fire, kommer en afslutning, og disketterne fortsætter i ring.
 - Ryger en diskette på gulvet, kaster robotten en ny efter 8 sekunder.
 - Rører gæsten ikke noget i 30 sekunder, kommer et tip.

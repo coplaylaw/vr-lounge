@@ -21,6 +21,7 @@ export class Sound {
     this.variants = new Map(); // 'robot/hit' -> ['robot/hit-1', 'robot/hit-2', ...]
     this.loops = [];
     this.last = new Map(); // seneste afspilning pr. lyd, så den samme lyd ikke stables
+    this.levels = {}; // forstærkning pr. lyd, så de ligger på samme niveau (se tools/levels.py)
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
     const ctx = (this.ctx = new AudioContext());
@@ -39,6 +40,11 @@ export class Sound {
 
   async load() {
     const spec = await (await fetch('tools/sounds.json')).json();
+    try {
+      this.levels = await (await fetch(`${ROOT}levels.json`)).json();
+    } catch (err) {
+      console.warn('Lydniveauer mangler', err);
+    }
     const names = [...spec.music, ...spec.sfx].map((e) => e.file.replace(/\.mp3$/, '')).concat(this.extra);
     for (const name of names) {
       const base = name.replace(/-\d+$/, '');
@@ -107,14 +113,15 @@ export class Sound {
     if (!this.started) return;
     const t = this.ctx.currentTime;
     if (t - (this.last.get(name) ?? -1) < gap) return;
-    const buffer = this.buffers.get(this.pick(name));
+    const picked = this.pick(name);
+    const buffer = this.buffers.get(picked);
     if (!buffer) return;
     this.last.set(name, t);
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
     src.playbackRate.value = rate * (1 + (Math.random() - 0.5) * 2 * vary);
     const gain = this.ctx.createGain();
-    gain.gain.value = volume;
+    gain.gain.value = volume * (this.levels[picked] ?? 1);
     src.connect(gain).connect(this.output(at, this.sfx, ref));
     src.start(t + delay);
   }
@@ -188,13 +195,14 @@ export class Sound {
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
     src.loop = true;
+    const level = this.levels[name] ?? 1;
     const gain = this.ctx.createGain();
-    gain.gain.value = volume;
+    gain.gain.value = volume * level;
     const out = this.output(at, bus);
     src.connect(gain).connect(out);
     src.start();
     const handle = {
-      volume: (v) => gain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.08),
+      volume: (v) => gain.gain.setTargetAtTime(v * level, this.ctx.currentTime, 0.08),
       move: (p) => out !== bus && this.place(out, p),
       stop: () => {
         gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);

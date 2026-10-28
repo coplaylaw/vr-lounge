@@ -1,0 +1,96 @@
+{
+  "music": [
+    {
+      "file": "music/lounge-theme.mp3",
+      "length_ms": 150000,
+      "prompt": "Instrumental sci-fi lounge background music for a calm futuristic reception at the top of a clock tower overlooking a neon city at night. Downtempo, 92 BPM, warm analog synth pads, soft Rhodes electric piano chords, gentle arpeggiated synth, deep round sub bass, brushed electronic drums with subtle shuffle, light vinyl texture, dreamy and optimistic, Blade Runner meets bossa nova lounge. Even energy all the way through with no big build-ups, no vocals, no sudden stops, so it works as unobtrusive looping background music. End softly so it can loop back to the start."
+    }
+  ],
+  "sfx": [
+    {"file": "ambience/room-tone.mp3", "duration": 30, "loop": true, "prompt": "Quiet ambience inside a high-rise sci-fi lounge at night: soft air hum, very distant city traffic and flying cars far below, faint wind against large windows, calm and steady, no distinct events"},
+    {"file": "ambience/neon-buzz.mp3", "duration": 10, "loop": true, "prompt": "Very soft steady electrical hum of neon signs and glowing lamps, subtle, constant"},
+    {"file": "ambience/clock-tick.mp3", "duration": 4, "loop": true, "prompt": "Large wall clock ticking slowly once per second, clean mechanical tick, quiet room"},
+    {"file": "ambience/monorail-pass.mp3", "duration": 8, "prompt": "Futuristic maglev monorail gliding past inside a glass tube, smooth electric whoosh rising and fading, heard through a window"},
+    {"file": "ambience/drone-hum.mp3", "duration": 8, "loop": true, "prompt": "Distant hovering spherical drone, soft pulsing electric hum, sci-fi, heard through glass"},
+
+    {"file": "robot/hover-loop.mp3", "duration": 6, "loop": true, "prompt": "Small friendly floating robot hovering in place, gentle soft electric hum with a slight warble, quiet, steady loop"},
+    {"file": "robot/servo-1.mp3", "duration": 0.6, "prompt": "Tiny quick robot head servo motor turn, short soft whirr, cute"},
+    {"file": "robot/servo-2.mp3", "duration": 0.8, "prompt": "Small robot arm servo movement, smooth short mechanical whirr up then down"},
+    {"file": "robot/wave.mp3", "duration": 1.5, "prompt": "Cute friendly robot waving hello, playful rising beep-boop chirps with soft servo whirrs"},
+    {"file": "robot/highfive-ready.mp3", "duration": 1, "prompt": "Small robot raising its hand expectantly, quick servo whirr ending in a hopeful rising beep"},
+    {"file": "robot/highfive.mp3", "duration": 1.5, "prompt": "Satisfying high five slap between a human hand and a plastic robot hand, crisp clap followed by a happy sparkling digital chime"},
+    {"file": "robot/happy.mp3", "duration": 1, "prompt": "Cute small robot happy chirp, quick bright rising beeps, R2-D2 style but softer"},
+    {"file": "robot/love.mp3", "duration": 1.5, "prompt": "Adorable robot delighted reaction, warm melodic twinkling beeps like a blushing robot, soft sparkle"},
+    {"file": "robot/celebrate.mp3", "duration": 2.5, "prompt": "Small robot celebrating a victory, cheerful short electronic fanfare of beeps and boops with a sparkly ending"},
+    {"file": "robot/hit-1.mp3", "duration": 1, "prompt": "Object bonks a hollow plastic robot head, comedic boing followed by a surprised falling robot beep"},
+    {"file": "robot/hit-2.mp3", "duration": 1, "prompt": "Thrown toy hits a cute robot's plastic head, cartoon bonk and a short dizzy glitchy warble"},
+    {"file": "robot/hit-3.mp3", "duration": 1, "prompt": "Plastic thunk on a robot casing, then an indignant little descending robot squeak"},
+    {"file": "robot/disk-launch.mp3", "duration": 0.8, "prompt": "Small pneumatic puff as a robot ejects and tosses a floppy disk from a slot in its chest, short mechanical click and whoosh"},
+    {"file": "robot/talk-blip.mp3", "duration": 0.5, "prompt": "Single very short soft robotic speech blip, one syllable, retro computer voice chirp"},
+
+    {"file": "ui/start.mp3", "duration": 2.5, "prompt": "Futuristic VR experience start, soft airy whoosh into a warm welcoming synth chime, sci-fi interface"},
+    {"file": "ui/panel-open.mp3", "duration": 0.6, "prompt": "Holographic speech bubble appearing, soft quick digital shimmer pop, sci-fi UI"},
+    {"file": "ui/type-tick.mp3", "duration": 0.5, "prompt": "Single tiny soft digital text typing tick, sci-fi terminal, very short"},
+    {"file": "ui/hint.mp3", "duration": 1, "prompt": "Gentle friendly notification chime, two soft rising synth notes, sci-fi UI"},
+    {"file": "ui/outro.mp3", "duration": 3, "prompt": "Warm satisfying completion jingle, soft synth arpeggio resolving upward with sparkles, sci-fi lounge"},
+    {"file": "ui/reset.mp3", "duration": 2, "prompt": "Holographic scene clearing away, soft reverse shimmer and dematerializing whoosh"},
+
+    {"file": "interact/grab.mp3", "duration": 0.5, "prompt": "Quick soft grab of a small object in VR, subtle hand rustle with a tiny haptic click"},
+    {"file": "interact/release.mp3", "duration": 0.5, "prompt": "Letting go of a small object, very soft quiet airy release"},
+    {"file": "interact/throw.mp3", "duration": 0.6, "prompt": "Fast swoosh of a small object thrown through the air past the ear"},
+    {"file": "interact/pull.mp3", "duration": 0.8, "prompt": "Telekinetic force pull, an object flies toward your hand, rising sci-fi energy whoosh ending in a soft catch"},
+    {"file": "interact/pointer-hover.mp3", "duration": 0.5, "prompt": "Very subtle soft sci-fi UI hover tick when a laser pointer targets an object"},
+
+    {"file": "desk/disk-near.mp3", "duration": 4, "loop": true, "prompt": "Retro computer disk drive slot glowing and waiting, soft electric anticipation hum, sci-fi"},
+    {"file": "desk/disk-insert.mp3", "duration": 1.5, "prompt": "3.5 inch floppy disk being pushed into a drive slot, plastic slide, mechanical clunk as the drive grabs it"},
+    {"file": "desk/disk-read.mp3", "duration": 2, "prompt": "Retro floppy disk drive reading data, quick seeking chatter and whirr, then a happy computer beep"},
+    {"file": "desk/print.mp3", "duration": 2, "prompt": "Futuristic matter printer materializing an object, rising electric hum with sparkling energy, ending in a soft bright pop"},
+    {"file": "desk/materialize.mp3", "duration": 0.7, "prompt": "Small object popping into existence from a hologram, quick magical sci-fi bloop with sparkle"},
+    {"file": "desk/dematerialize.mp3", "duration": 0.8, "prompt": "Small object dissolving into digital particles, short descending sci-fi shimmer"},
+
+    {"file": "impact/disk-table-1.mp3", "duration": 0.5, "prompt": "Plastic floppy disk dropped flat onto a wooden desk, light clack"},
+    {"file": "impact/disk-table-2.mp3", "duration": 0.5, "prompt": "Plastic floppy disk tossed onto a wooden table, clear clatter and short slide", "influence": 0.7},
+    {"file": "impact/disk-floor-1.mp3", "duration": 0.6, "prompt": "Plastic floppy disk falling onto a hard floor, light slap and small bounce"},
+    {"file": "impact/disk-floor-2.mp3", "duration": 0.6, "prompt": "Thin plastic case dropped on a polished floor, flat clack and skitter"},
+    {"file": "impact/block-table-1.mp3", "duration": 0.5, "prompt": "Small wooden toy block dropped on a wooden table, clean hollow knock"},
+    {"file": "impact/block-table-2.mp3", "duration": 0.6, "prompt": "Wooden alphabet block tumbling onto a wooden table, two clear loud knocks", "influence": 0.7},
+    {"file": "impact/block-table-3.mp3", "duration": 0.5, "prompt": "Wooden cube set down firmly on a desk, single solid tock"},
+    {"file": "impact/block-floor-1.mp3", "duration": 0.7, "prompt": "Wooden toy block falling on a hard floor, bouncy knocks"},
+    {"file": "impact/block-floor-2.mp3", "duration": 0.7, "prompt": "Wooden cube dropped on a hard floor, one thud and a small roll"},
+    {"file": "impact/block-stack.mp3", "duration": 0.5, "prompt": "Wooden block placed on top of another wooden block, crisp light click"},
+    {"file": "impact/blocks-tumble.mp3", "duration": 1.5, "prompt": "Small tower of wooden toy blocks collapsing and tumbling onto a table"},
+    {"file": "impact/blaster-table.mp3", "duration": 0.6, "prompt": "Plastic toy blaster gun set down on a wooden desk, hollow plastic clunk"},
+    {"file": "impact/blaster-floor.mp3", "duration": 0.8, "prompt": "Hollow plastic toy gun dropped on a hard floor, clattering bounce"},
+    {"file": "impact/mug-table-1.mp3", "duration": 0.6, "prompt": "Ceramic coffee mug set down on a wooden desk, solid porcelain clink"},
+    {"file": "impact/mug-table-2.mp3", "duration": 0.6, "prompt": "Ceramic cup tipped over onto a table, porcelain clunk and short roll"},
+    {"file": "impact/mug-floor.mp3", "duration": 0.8, "prompt": "Ceramic mug dropped on a hard floor without breaking, heavy porcelain clonk and roll"},
+    {"file": "impact/wall-1.mp3", "duration": 0.5, "prompt": "Small object thrown against a padded wall, muffled thump"},
+    {"file": "impact/wall-2.mp3", "duration": 0.5, "prompt": "Small object hits a hard painted wall, short knock"},
+    {"file": "impact/glass.mp3", "duration": 0.7, "prompt": "Small object bounces off a thick window pane, dull glass thunk with slight resonance, no breaking"},
+    {"file": "impact/ceiling.mp3", "duration": 0.5, "prompt": "Small object hits a ceiling panel, muffled tap"},
+    {"file": "impact/soft-thud.mp3", "duration": 0.5, "prompt": "Very soft quiet small thud, object gently bumping into another"},
+
+    {"file": "blaster/shot-1.mp3", "duration": 0.5, "prompt": "Toy confetti cannon firing, soft pneumatic pop with a sparkly sci-fi pew"},
+    {"file": "blaster/shot-2.mp3", "duration": 0.5, "prompt": "Playful sci-fi toy blaster shot, light airy pew with a puff of confetti"},
+    {"file": "blaster/shot-3.mp3", "duration": 0.5, "prompt": "Cute laser toy gun shot, bright short zap with a soft pop"},
+    {"file": "blaster/shot-impact.mp3", "duration": 0.5, "prompt": "Confetti projectile hits a wall, soft paper splat with tiny sparkle"},
+    {"file": "blaster/target-spawn.mp3", "duration": 1, "prompt": "Glowing holographic target ring appearing in the air, rising shimmer whoosh"},
+    {"file": "blaster/target-hum.mp3", "duration": 4, "loop": true, "prompt": "Floating holographic target ring, faint soft pulsing electric hum"},
+    {"file": "blaster/target-hit-1.mp3", "duration": 1, "prompt": "Hitting a holographic target, satisfying bright pop with a confetti burst and a rising ding"},
+    {"file": "blaster/target-hit-2.mp3", "duration": 1, "prompt": "Arcade target hit, glassy energy shatter into sparkles with a cheerful ding"},
+    {"file": "blaster/all-targets.mp3", "duration": 3, "prompt": "All targets cleared, short triumphant arcade victory fanfare with confetti poppers and cheering sparkles"},
+
+    {"file": "fx/confetti-burst.mp3", "duration": 1.2, "prompt": "Party popper bursting confetti, pop followed by fluttering paper shower"},
+    {"file": "fx/confetti-big.mp3", "duration": 2, "prompt": "Big confetti explosion celebration, loud party popper and lots of falling paper"},
+    {"file": "fx/sparkle.mp3", "duration": 1, "prompt": "Magical sparkle twinkle, light bright chimes"},
+
+    {"file": "butterflies/spawn.mp3", "duration": 2, "prompt": "Swarm of glowing holographic butterflies released, soft fluttering wings with magical shimmer"},
+    {"file": "butterflies/flutter-loop.mp3", "duration": 4, "loop": true, "prompt": "Gentle butterfly wings fluttering close by, soft delicate flapping"},
+    {"file": "butterflies/land.mp3", "duration": 1, "prompt": "Butterfly gently landing on a hand, tiny soft magical twinkle"},
+    {"file": "butterflies/takeoff.mp3", "duration": 0.8, "prompt": "Butterfly taking off quickly, short soft flutter burst"},
+
+    {"file": "coffee/steam-loop.mp3", "duration": 5, "loop": true, "prompt": "Very soft gentle steam rising from a hot cup of coffee, quiet airy hiss"},
+    {"file": "coffee/slosh.mp3", "duration": 0.8, "prompt": "Coffee sloshing inside a ceramic mug as it is moved, small liquid swirl"},
+    {"file": "coffee/sip.mp3", "duration": 1, "prompt": "Person taking a small sip of hot coffee from a mug, satisfied soft ahh"}
+  ]
+}

@@ -19,13 +19,15 @@ const _s = new THREE.Vector3();
 // Greb og kast med controllere (grebknap eller aftrækker), hænder (knib) og mus i desktop-visningen.
 // Alt regnes i stage-koordinater, så det passer med fysikken.
 export class Input {
-  constructor({ renderer, scene, camera, stage, physics, onGrab, onRelease, onClick }) {
+  constructor({ renderer, scene, camera, stage, physics, onGrab, onRelease, onPull, onPoint, onClick }) {
     this.renderer = renderer;
     this.camera = camera;
     this.stage = stage;
     this.physics = physics;
     this.onGrab = onGrab;
     this.onRelease = onRelease;
+    this.onPull = onPull;
+    this.onPoint = onPoint;
     this.onClick = onClick;
     this.raycaster = new THREE.Raycaster();
     this.stageInverse = new THREE.Matrix4();
@@ -123,6 +125,7 @@ export class Input {
       this.attach(source, item);
     } else {
       source.pulling = { item, t: 0, from: item.mesh.position.clone(), fromQ: item.mesh.quaternion.clone() };
+      this.onPull?.(item, source);
     }
   }
 
@@ -350,6 +353,7 @@ export class Input {
       }
       this.raycaster.far = Infinity;
     }
+    if (best?.mode === 'ray' && best.item !== source.target?.item) this.onPoint?.(best.item, source);
     source.target = best;
     if (best) best.item.highlight = true;
   }

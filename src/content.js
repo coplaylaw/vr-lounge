@@ -1,5 +1,7 @@
 // Alle tekster i oplevelsen på dansk og engelsk. UDKAST: ret dem til, så de passer til CO:PLAY.
 // Gæsten vælger sprog først. setLanguage() skifter så alle de eksporterede tekster herunder.
+// voice er robottens indtalte replik i assets/audio/voice. En liste afspilles i rækkefølge,
+// og tal i listen er pauser i sekunder. Replikker uden voice vises kun i talebobblen.
 
 import { CVI } from './palette.js';
 
@@ -9,6 +11,7 @@ export const SPEAKER = 'CO:BOT · Reception';
 export const LANGUAGE_PROMPT = {
   title: 'Dansk eller English?',
   body: 'Tryk på dit sprog. Touch your language.',
+  voice: ['voice/language-1-da', 0.3, 'voice/language-2-en', 0.8, 'voice/language-3-da', 0.3, 'voice/language-4-en'],
 };
 
 export const LANGUAGES = [
@@ -25,21 +28,25 @@ const TEXT = {
       {
         title: 'Hej og velkommen!',
         body: 'Jeg hedder CO:BOT og passer den virtuelle reception her hos CO:PLAY.',
+        voice: 'voice/intro-da',
       },
       {
         title: 'Slå dig ned',
         body: 'Du er velkommen til at hænge ud her, mens du venter på dit møde. Din vært kommer og henter dig, når det er tid.',
+        voice: 'voice/intro-2-da',
       },
     ],
 
     HIGH_FIVE: {
       title: 'Giv mig fem!',
       body: 'Ræk hånden frem og giv mig en high five.',
+      voice: 'voice/highfive-da',
     },
 
     HIGH_FIVE_DONE: {
       title: 'Sådan!',
       body: 'Du har styr på det. Jeg har noget, du kan lege med, mens du venter.',
+      voice: 'voice/highfive-done-da',
     },
 
     DISK_HINT: {
@@ -117,21 +124,25 @@ const TEXT = {
       {
         title: 'Hi and welcome!',
         body: 'I am CO:BOT, and I look after the virtual reception here at CO:PLAY.',
+        voice: 'voice/intro-en',
       },
       {
         title: 'Make yourself at home',
         body: 'Feel free to hang out here while you wait for your meeting. Your host will come and get you when it is time.',
+        voice: 'voice/intro-2-en',
       },
     ],
 
     HIGH_FIVE: {
       title: 'High five!',
       body: 'Reach out your hand and give me a high five.',
+      voice: 'voice/highfive-en',
     },
 
     HIGH_FIVE_DONE: {
       title: 'Nice!',
       body: 'You have got the hang of it. I have something you can play with while you wait.',
+      voice: 'voice/highfive-done-en',
     },
 
     DISK_HINT: {
@@ -215,3 +226,10 @@ export function setLanguage(id) {
 }
 
 setLanguage('da');
+
+// Alle indtalte replikker på begge sprog, så de kan hentes på forhånd.
+export const VOICE_FILES = [];
+(function collect(value) {
+  if (typeof value === 'string' && value.startsWith('voice/')) VOICE_FILES.push(value);
+  else if (value && typeof value === 'object') Object.values(value).forEach(collect);
+})([LANGUAGE_PROMPT, TEXT]);

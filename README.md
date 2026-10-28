@@ -64,6 +64,12 @@ ELEVENLABS_API_KEY=... python3 tools/generate_audio.py --force <del af filnavn>
 
 Uden `--force` laves kun de filer, der mangler.
 
+Robottens replikker er indtalt med CO:BOT-stemmen og ligger i `assets/audio/voice`. Hver replik i [src/content.js](src/content.js) har et lydspor, fx `voice/topic-2-play-en`. Ret en tekst, slet dens lydfil, og indtal den igen med:
+
+```bash
+ELEVENLABS_API_KEY=... node tools/generate_voice.mjs
+```
+
 Lydene afspilles af [src/audio.js](src/audio.js) med rumlig lyd, så de kommer fra det sted i rummet, hvor det sker. Hvilken lyd der hører til hvilken hændelse, står i [src/main.js](src/main.js). Filer, der ender på `-1`, `-2` osv., er varianter, og der vælges en tilfældig af dem hver gang.
 
 ## Opførsel

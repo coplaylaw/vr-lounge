@@ -1,12 +1,14 @@
 // Alle tekster i oplevelsen. UDKAST: ret dem til, så de passer til CO:PLAY.
 
+import { CVI } from './palette.js';
+
 export const SPEAKER = 'CO:BOT · Reception';
 
 // Robotten siger disse linjer, når oplevelsen starter.
 export const INTRO = [
   {
     title: 'Hej og velkommen!',
-    body: 'Jeg hedder CO:BOT og passer receptionen her øverst i CO:PLAY-tårnet.',
+    body: 'Jeg hedder CO:BOT og passer receptionen her hos CO:PLAY.',
   },
 ];
 
@@ -35,7 +37,7 @@ export const NEXT_DISK = {
 export const TOPICS = [
   {
     label: 'Hvem er vi?',
-    color: '#36d6ff',
+    color: CVI.cyan,
     item: 'blocks',
     title: 'Hvem er vi?',
     body: 'CO:PLAY er et advokatfirma, der kombinerer juridisk rådgivning med teknologi. Skriv jeres egen præsentation her.',
@@ -43,7 +45,7 @@ export const TOPICS = [
   },
   {
     label: 'Jura + tech',
-    color: '#4f7bff',
+    color: CVI.blue,
     item: 'blaster',
     title: 'Jura møder teknologi',
     body: 'Vi bygger selv de digitale værktøjer, vi arbejder med. Det rum, du sidder i, er også lavet her i huset.',
@@ -51,7 +53,7 @@ export const TOPICS = [
   },
   {
     label: 'Huset',
-    color: '#ffb45e',
+    color: CVI.orange,
     item: 'butterflies',
     title: 'Et gammelt hus i en ny by',
     body: 'Gamle mursten, varmt lys i vinduerne og en by i fuld fart udenfor. Sådan ser vi gerne os selv.',
@@ -59,7 +61,7 @@ export const TOPICS = [
   },
   {
     label: 'Mens du venter',
-    color: '#bfe9ff',
+    color: CVI.sand,
     item: 'coffee',
     title: 'Mens du venter',
     body: 'Din vært kommer og henter dig om lidt. Spørg gerne i receptionen, hvis du vil have kaffe eller vand.',
@@ -78,7 +80,7 @@ export const HIT_LINES = [
 export const HINTS = [
   { title: 'Prøv selv', body: 'Peg på en ting og hold knappen inde, så flyver den hen til dig.' },
   { title: 'Kast den', body: 'Sving armen og giv slip for at kaste. Det er helt okay at ramme mig.' },
-  { title: 'Kig ud', body: 'Se ud ad vinduerne: svævetoget kører hele vejen rundt om tårnet.' },
+  { title: 'Kig ud', body: 'Se ud ad vinduerne: svævetoget kører hele vejen rundt om huset.' },
 ];
 
 // Vises, når gæsten har prøvet alle disketterne.

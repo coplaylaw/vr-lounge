@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import { CVI } from './palette.js';
 
 export { CANNON };
 
@@ -27,19 +28,28 @@ export class Physics {
     return body;
   }
 
-  // Gulv, loft og de otte vægge (også vinduerne, så intet ryger ud).
-  addRoom(radius, height) {
+  // Gulv, loft og de fire vægge (også vinduerne, så intet ryger ud).
+  addRoom({ minX, maxX, minZ, maxZ, height }) {
     const flat = new CANNON.Quaternion().setFromEuler(-Math.PI / 2, 0, 0);
     this.addStatic(new CANNON.Plane(), { x: 0, y: 0, z: 0 }, flat);
     const down = new CANNON.Quaternion().setFromEuler(Math.PI / 2, 0, 0);
     this.addStatic(new CANNON.Plane(), { x: 0, y: height, z: 0 }, down);
-    const wall = new CANNON.Box(new CANNON.Vec3(2, height / 2 + 0.5, 0.25));
-    for (let i = 0; i < 8; i++) {
-      const angle = (i * Math.PI) / 4;
-      const q = new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0, 1, 0), angle);
-      const d = radius + 0.25;
-      this.addStatic(wall, { x: -Math.sin(angle) * d, y: height / 2, z: -Math.cos(angle) * d }, q);
-    }
+    const t = 0.25;
+    const w = (maxX - minX) / 2 + t * 2;
+    const d = (maxZ - minZ) / 2 + t * 2;
+    const cx = (minX + maxX) / 2;
+    const cz = (minZ + maxZ) / 2;
+    const y = height / 2;
+    this.addStatic(new CANNON.Box(new CANNON.Vec3(w, y, t)), { x: cx, y, z: minZ - t });
+    this.addStatic(new CANNON.Box(new CANNON.Vec3(w, y, t)), { x: cx, y, z: maxZ + t });
+    this.addStatic(new CANNON.Box(new CANNON.Vec3(t, y, d)), { x: minX - t, y, z: cz });
+    this.addStatic(new CANNON.Box(new CANNON.Vec3(t, y, d)), { x: maxX + t, y, z: cz });
+  }
+
+  // Fast kasse til møbler: størrelse og midtpunkt i meter, drejet om y.
+  addBox(size, center, rotY = 0) {
+    const q = new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0, 1, 0), rotY);
+    return this.addStatic(new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)), center, q);
   }
 
   // Et objekt, der kan gribes og kastes. radius bruges til greb og glød.
@@ -57,9 +67,9 @@ export class Physics {
     this.world.addBody(body);
     this.stage.add(mesh);
 
+    // Normal blanding (ikke additiv), så gløden også kan ses mod de lyse vægge.
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: this.glowTex, color: 0x36d6ff, transparent: true, opacity: 0.55,
-      blending: THREE.AdditiveBlending, depthWrite: false,
+      map: this.glowTex, color: CVI.cyan, transparent: true, opacity: 0.6, depthWrite: false,
     }));
     glow.scale.setScalar(radius * 5);
     glow.visible = false;

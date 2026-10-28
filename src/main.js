@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWorld } from './world.js';
+import { buildWorld, SKY_HORIZON } from './world.js';
 import { Physics } from './physics.js';
 import { Robot } from './robot.js';
 import { Desk, DESK_TOP, PAD } from './desk.js';
@@ -19,8 +19,6 @@ const IDLE_HINT_AFTER = 30;
 const HIGH_FIVE_TIMEOUT = 14;
 const NEXT_DISK_AFTER = 12; // sekunder efter en diskette er sat i
 const RESET_AFTER_HIDDEN = 15; // headsettet taget af i så mange sekunder = ny gæst
-const ROOM_RADIUS = 4;
-const ROOM_HEIGHT = 3.6;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -31,8 +29,8 @@ renderer.xr.setFoveation(1);
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0d1d3a);
-scene.fog = new THREE.FogExp2(0x0d1d3a, 0.0035);
+scene.background = new THREE.Color(SKY_HORIZON);
+scene.fog = new THREE.FogExp2(SKY_HORIZON, 0.0035);
 
 // Siddende øjenhøjde til desktop-forhåndsvisningen. I VR styrer headsettet kameraet.
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.03, 2000);
@@ -43,9 +41,8 @@ const stage = new THREE.Group();
 scene.add(stage);
 
 const glowTex = glowTexture();
-const world = buildWorld(stage);
 const physics = new Physics(stage, glowTex);
-physics.addRoom(ROOM_RADIUS, ROOM_HEIGHT);
+const world = buildWorld(stage, physics);
 const desk = new Desk(stage, physics);
 const robot = new Robot(stage, physics, SPEAKER, glowTex);
 const projectiles = new Projectiles(stage, physics);
@@ -494,7 +491,7 @@ function simulate(time, dt) {
 
 // Til fejlfinding i browserens konsol. advance(sek) spoler tiden frem uden at tegne.
 window.lounge = {
-  story, physics, input, robot, targets, butterflies, desk, printItem, dispenseDisk, startInsert,
+  story, physics, input, robot, targets, butterflies, desk, printItem, dispenseDisk, startInsert, renderer,
   advance(seconds) {
     for (let t = 0; t < seconds; t += 1 / 60) {
       clock.elapsedTime += 1 / 60;

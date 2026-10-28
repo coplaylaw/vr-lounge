@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 import { XRHandModelFactory } from 'three/addons/webxr/XRHandModelFactory.js';
+import { CVI } from './palette.js';
 
 const NEAR_GRAB = 0.07; // afstand fra hånd til tingens overflade
 const RAY_LENGTH = 5;
@@ -36,7 +37,7 @@ export class Input {
 
     for (let i = 0; i < 2; i++) {
       const controller = renderer.xr.getController(i);
-      const ray = new THREE.Line(rayGeo, new THREE.LineBasicMaterial({ color: 0x36d6ff, transparent: true, opacity: 0.25 }));
+      const ray = new THREE.Line(rayGeo, new THREE.LineBasicMaterial({ color: CVI.cyan, transparent: true, opacity: 0.35 }));
       ray.visible = false;
       controller.add(ray);
       scene.add(controller);

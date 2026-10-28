@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { CANNON } from './physics.js';
 import { diskLabelTexture, letterTexture, wingTexture } from './materials.js';
+import { CVI, CYAN_LIGHT } from './palette.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -37,10 +38,10 @@ export function createDisk(physics, topic, position) {
 const BLOCK = 0.07;
 export function createLetterBlock(physics, letter, index, position) {
   const palette = [
-    ['#0a1424', '#36d6ff'],
-    ['#36d6ff', '#0a1424'],
+    [CVI.navy, CVI.white],
+    [CVI.cyan, CVI.navy],
   ];
-  const [bg, fg] = letter === ':' ? ['#ffb45e', '#0a1424'] : palette[index % 2];
+  const [bg, fg] = letter === ':' ? [CVI.orange, CVI.white] : palette[index % 2];
   const mesh = new THREE.Mesh(
     new THREE.BoxGeometry(BLOCK, BLOCK, BLOCK),
     new THREE.MeshLambertMaterial({ map: letterTexture(letter, bg, fg) }),
@@ -57,11 +58,11 @@ export const BLASTER_MUZZLE = new THREE.Vector3(0, 0, -0.15);
 export function createBlaster(physics, position) {
   const group = new THREE.Group();
   const white = new THREE.MeshLambertMaterial({ color: 0xe8eef5 });
-  const cyan = new THREE.MeshBasicMaterial({ color: 0x36d6ff, toneMapped: false });
+  const cyan = new THREE.MeshBasicMaterial({ color: CVI.cyan, toneMapped: false });
   group.add(new THREE.Mesh(new RoundedBoxGeometry(0.05, 0.065, 0.16, 3, 0.015), white));
   const barrel = new THREE.Mesh(
     new THREE.CylinderGeometry(0.016, 0.02, 0.07, 16),
-    new THREE.MeshLambertMaterial({ color: 0x1b2a4a }),
+    new THREE.MeshLambertMaterial({ color: CVI.navy }),
   );
   barrel.rotation.x = Math.PI / 2;
   barrel.position.z = -0.11;
@@ -78,7 +79,7 @@ export function createBlaster(physics, position) {
   group.add(stripe);
   const tank = new THREE.Mesh(
     new THREE.SphereGeometry(0.02, 16, 8),
-    new THREE.MeshBasicMaterial({ color: 0xffb45e, toneMapped: false }),
+    new THREE.MeshBasicMaterial({ color: CVI.orange, toneMapped: false }),
   );
   tank.position.set(0, 0.04, 0.03);
   group.add(tank);
@@ -101,7 +102,7 @@ export function createCoffee(physics, position, glowTex) {
   cup.add(new THREE.Mesh(new THREE.LatheGeometry(profile, 28), white));
   const band = new THREE.Mesh(
     new THREE.CylinderGeometry(0.0382, 0.0372, 0.018, 28, 1, true),
-    new THREE.MeshLambertMaterial({ color: 0x36d6ff }),
+    new THREE.MeshLambertMaterial({ color: CVI.cyan }),
   );
   band.position.y = 0.055;
   cup.add(band);
@@ -150,7 +151,7 @@ export class Projectiles {
     this.world = physics.world;
     this.list = [];
     this.geometry = new THREE.SphereGeometry(0.017, 12, 8);
-    this.materials = ['#36d6ff', '#ffb45e', '#ff7ab8', '#bfe9ff'].map(
+    this.materials = [CVI.cyan, CVI.orange, CVI.blue, CVI.sand].map(
       (c) => new THREE.MeshBasicMaterial({ color: c, toneMapped: false }),
     );
     this.shape = new CANNON.Sphere(0.017);
@@ -219,12 +220,11 @@ export class Targets {
   constructor(stage) {
     this.stage = stage;
     this.list = [];
-    this.ringMat = new THREE.MeshBasicMaterial({ color: 0x36d6ff, transparent: true, toneMapped: false });
+    this.ringMat = new THREE.MeshBasicMaterial({ color: CVI.cyan, transparent: true, toneMapped: false });
     this.discMat = new THREE.MeshBasicMaterial({
-      color: 0x36d6ff, transparent: true, opacity: 0.15, side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending, depthWrite: false,
+      color: CVI.cyan, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false,
     });
-    this.eyeMat = new THREE.MeshBasicMaterial({ color: 0xffb45e, toneMapped: false });
+    this.eyeMat = new THREE.MeshBasicMaterial({ color: CVI.orange, toneMapped: false });
     this.lookTarget = new THREE.Vector3();
   }
 
@@ -300,7 +300,7 @@ export class Confetti {
     }));
     this.points.frustumCulled = false;
     stage.add(this.points);
-    this.palette = ['#36d6ff', '#ffb45e', '#ff7ab8', '#ffffff', '#4f7bff'].map((c) => new THREE.Color(c));
+    this.palette = [CVI.cyan, CVI.orange, CVI.blue, CVI.white, CVI.sand, CVI.navy].map((c) => new THREE.Color(c));
   }
 
   burst(position, count = 50, speed = 2) {
@@ -351,11 +351,11 @@ export class Butterflies {
     this.list = [];
     const tex = wingTexture();
     this.wingGeo = new THREE.PlaneGeometry(0.04, 0.04).translate(0.02, 0, 0).rotateX(Math.PI / 2);
-    this.wingMats = ['#ffffff', '#ffd59a', '#9fe9ff'].map((c) => new THREE.MeshBasicMaterial({
+    this.wingMats = [CVI.white, CVI.sand, CYAN_LIGHT].map((c) => new THREE.MeshBasicMaterial({
       map: tex, color: c, transparent: true, alphaTest: 0.2, side: THREE.DoubleSide, toneMapped: false,
     }));
     this.bodyGeo = new THREE.CapsuleGeometry(0.004, 0.022, 4, 8).rotateX(Math.PI / 2);
-    this.bodyMat = new THREE.MeshBasicMaterial({ color: 0x0a1424 });
+    this.bodyMat = new THREE.MeshBasicMaterial({ color: CVI.navy });
     this.matrix = new THREE.Matrix4();
     this.desired = new THREE.Vector3();
     this.ahead = new THREE.Vector3();

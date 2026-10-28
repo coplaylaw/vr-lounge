@@ -1,45 +1,71 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { CANNON } from './physics.js';
+import { CVI } from './palette.js';
 import {
-  seededRandom, brickTexture, woodTexture, windowTexture, neonTexture,
-  clockFaceTexture, glowTexture, hologramMaterial, beamMaterial,
+  seededRandom, windowTexture, logoNeonTexture, clockFaceTexture, glowTexture, hologramMaterial, beamMaterial,
+  floorTexture, plasterTexture, columnTexture, ceilingTexture, ductTexture, rugTexture, curtainTexture,
+  paintingTexture, deskFrontTexture, leafTexture,
 } from './materials.js';
 
-// Gæsten sidder i origo og kigger mod -Z. Loungen er et ottekantet rum øverst i urtårnet.
-const R = 4; // afstand fra centrum til væggene
-const WALL_H = 3.6;
+// Gæsten sidder i origo og kigger mod -Z. Rummet er bygget over CO:PLAYs reception:
+// vinduesvæg foran, spartlet væg med neonskilt til venstre, skranken til højre og glasvægge bagved.
+export const ROOM = { minX: -4.6, maxX: 4.6, minZ: -4.2, maxZ: 3.4, height: 3.1 };
 const THICK = 0.3;
-const SEG_W = 2 * R * Math.tan(Math.PI / 8) + 0.02;
-const GROUND = -32; // gadeniveau under tårnet
+const WIN = { halfWidth: 0.65, sill: 0.85, top: 2.75 };
+const MEETING_DEPTH = 2.0; // mødelokalerne bag glasvæggen
+const GROUND = -32; // gadeniveau langt under receptionen
 
-const WIN = { halfWidth: 0.9, sill: 0.75, spring: 2.2 }; // buet vindue som på CO:PLAY-huset
+export const SKY_HORIZON = '#35609a';
 
-const CYAN = 0x36d6ff;
-const AMBER = 0xffb45e;
-
-function archPath(path) {
-  const { halfWidth: hw, sill, spring } = WIN;
-  path.moveTo(-hw, sill);
-  path.lineTo(hw, sill);
-  path.lineTo(hw, spring);
-  path.absarc(0, spring, hw, 0, Math.PI, false);
-  path.lineTo(-hw, sill);
-  return path;
+const ONE = new THREE.Vector3(1, 1, 1);
+const _q = new THREE.Quaternion();
+const _e = new THREE.Euler();
+// Placering i rummet: position og drejning (først om y, så om x).
+function at(x, y, z, ry = 0, rx = 0, rz = 0) {
+  _e.set(rx, ry, rz, 'YXZ');
+  return new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), _q.setFromEuler(_e).clone(), ONE);
 }
 
-export function buildWorld(stage) {
+// Samler de faste dele pr. materiale og fletter dem til én mesh hver, så Quest 2 får færre draw calls.
+class Kit {
+  constructor() {
+    this.parts = new Map();
+  }
+
+  add(geometry, material, matrix) {
+    const geo = geometry.index ? geometry.toNonIndexed() : geometry.clone();
+    geo.clearGroups();
+    if (matrix) geo.applyMatrix4(matrix);
+    if (!this.parts.has(material)) this.parts.set(material, []);
+    this.parts.get(material).push(geo);
+  }
+
+  build(parent) {
+    for (const [material, geos] of this.parts) parent.add(new THREE.Mesh(mergeGeometries(geos), material));
+  }
+}
+
+function scaleUV(geo, su, sv) {
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv);
+  return geo;
+}
+
+export function buildWorld(stage, physics) {
   const animated = [];
   const holoMaterials = [];
   const glowTex = glowTexture();
 
-  stage.add(new THREE.HemisphereLight(0x5a7cc0, 0x1a1008, 1.1));
-  for (const x of [-2, 2]) {
-    const lamp = new THREE.PointLight(0xffb066, 6);
-    lamp.position.set(x, 2.7, 1.4);
-    stage.add(lamp);
-  }
+  // Lyst og jævnt kontorlys ovenfra, lidt varmt fra gulvet.
+  stage.add(new THREE.HemisphereLight(0xffffff, 0xf2ede6, 2.2));
+  const sun = new THREE.DirectionalLight(0xfff4e6, 1.1);
+  sun.position.set(1.5, 4, 2);
+  stage.add(sun);
 
-  buildRoom(stage, glowTex, animated);
+  physics.addRoom(ROOM);
+  buildRoom(stage, physics, glowTex, animated);
   buildCity(stage, animated, holoMaterials);
   buildSky(stage);
 
@@ -51,169 +77,333 @@ export function buildWorld(stage) {
   };
 }
 
-function buildRoom(stage, glowTex, animated) {
+function buildRoom(stage, physics, glowTex, animated) {
+  const { minX, maxX, minZ, maxZ, height: H } = ROOM;
   const room = new THREE.Group();
   stage.add(room);
+  const kit = new Kit();
 
-  const brick = new THREE.MeshLambertMaterial({ map: brickTexture() });
-  const frame = new THREE.MeshLambertMaterial({ color: 0x2a1d14 });
-  const glass = new THREE.MeshBasicMaterial({
-    color: 0x9fd8ff, transparent: true, opacity: 0.05, depthWrite: false, side: THREE.DoubleSide,
-  });
-  const cyanLine = new THREE.MeshBasicMaterial({ color: CYAN, toneMapped: false });
-  const warmLamp = new THREE.MeshBasicMaterial({ color: 0xffd9a0, toneMapped: false });
+  const M = {
+    wall: new THREE.MeshLambertMaterial({ color: 0xf1f0ec }),
+    trim: new THREE.MeshLambertMaterial({ color: 0xfafafa }),
+    alu: new THREE.MeshLambertMaterial({ color: 0xaeb4ba }),
+    navy: new THREE.MeshLambertMaterial({ color: CVI.navy }),
+    black: new THREE.MeshPhongMaterial({ color: 0x1b1c1f, specular: 0x333333, shininess: 30, side: THREE.DoubleSide }),
+    blackMatte: new THREE.MeshLambertMaterial({ color: 0x18191b }),
+    pot: new THREE.MeshLambertMaterial({ color: 0x45413c }),
+    bark: new THREE.MeshLambertMaterial({ color: 0x6b5a45 }),
+    light: new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    warm: new THREE.MeshBasicMaterial({ color: 0xfff1d6 }),
+    glass: new THREE.MeshBasicMaterial({
+      color: 0xcfe6ee, transparent: true, opacity: 0.08, depthWrite: false, side: THREE.DoubleSide,
+    }),
+  };
 
-  // Vægsegmenter: 0 = forfra, positive vinkler går mod venstre.
-  const layout = ['window', 'clock', 'window', 'wall', 'sign', 'wall', 'window', 'window'];
-  layout.forEach((kind, i) => {
-    const seg = new THREE.Group();
-    seg.rotation.y = (i * Math.PI) / 4;
-    room.add(seg);
+  // --- Vægge ---
 
+  // Væg med vinduesåbninger. Lokalt: x langs væggen, indersiden ved z = 0, tykkelsen bagud.
+  const windowWall = (length, centers, matrix) => {
     const shape = new THREE.Shape();
-    shape.moveTo(-SEG_W / 2, 0);
-    shape.lineTo(SEG_W / 2, 0);
-    shape.lineTo(SEG_W / 2, WALL_H);
-    shape.lineTo(-SEG_W / 2, WALL_H);
-    shape.lineTo(-SEG_W / 2, 0);
-    if (kind === 'window') shape.holes.push(archPath(new THREE.Path()));
-    const wall = new THREE.Mesh(
-      new THREE.ExtrudeGeometry(shape, { depth: THICK, bevelEnabled: false, curveSegments: 20 }),
-      brick,
-    );
-    wall.position.z = -R - THICK;
-    seg.add(wall);
-
-    if (kind === 'window') {
-      const zMid = -R - THICK / 2;
-      const top = WIN.spring + WIN.halfWidth;
-      const vertical = new THREE.Mesh(new THREE.BoxGeometry(0.05, top - WIN.sill, 0.06), frame);
-      vertical.position.set(0, (top + WIN.sill) / 2, zMid);
-      seg.add(vertical);
-      for (const y of [1.45, WIN.spring]) {
-        const bar = new THREE.Mesh(new THREE.BoxGeometry(WIN.halfWidth * 2, 0.05, 0.06), frame);
-        bar.position.set(0, y, zMid);
-        seg.add(bar);
-      }
-      const sill = new THREE.Mesh(new THREE.BoxGeometry(WIN.halfWidth * 2 + 0.2, 0.05, 0.3), frame);
-      sill.position.set(0, WIN.sill, -R + 0.08);
-      seg.add(sill);
-      const pane = new THREE.Mesh(new THREE.ShapeGeometry(archPath(new THREE.Shape()), 20), glass);
-      pane.position.z = zMid;
-      seg.add(pane);
+    shape.moveTo(-length / 2, 0);
+    shape.lineTo(length / 2, 0);
+    shape.lineTo(length / 2, H);
+    shape.lineTo(-length / 2, H);
+    shape.lineTo(-length / 2, 0);
+    for (const c of centers) {
+      const hole = new THREE.Path();
+      hole.moveTo(c - WIN.halfWidth, WIN.sill);
+      hole.lineTo(c + WIN.halfWidth, WIN.sill);
+      hole.lineTo(c + WIN.halfWidth, WIN.top);
+      hole.lineTo(c - WIN.halfWidth, WIN.top);
+      hole.lineTo(c - WIN.halfWidth, WIN.sill);
+      shape.holes.push(hole);
     }
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: THICK, bevelEnabled: false });
+    geo.translate(0, 0, -THICK);
+    kit.add(geo, M.wall, matrix);
 
-    if (kind === 'clock') buildClock(seg, cyanLine, animated);
-
-    if (kind === 'sign') {
-      const sign = new THREE.Mesh(
-        new THREE.PlaneGeometry(2.6, 0.65),
-        new THREE.MeshBasicMaterial({ map: neonTexture('CO:PLAY'), transparent: true, toneMapped: false }),
-      );
-      sign.position.set(0, 2.5, -R + 0.03);
-      seg.add(sign);
+    // Hvide sprosser: to fag og tre rækker ruder, som de gamle vinduer i huset.
+    const zMid = -THICK * 0.6;
+    const span = WIN.top - WIN.sill;
+    for (const c of centers) {
+      const part = (w, h, x, y) => kit.add(new THREE.BoxGeometry(w, h, 0.07), M.trim, matrix.clone().multiply(at(x, y, zMid)));
+      part(0.07, span, c - WIN.halfWidth + 0.035, WIN.sill + span / 2);
+      part(0.07, span, c + WIN.halfWidth - 0.035, WIN.sill + span / 2);
+      part(0.05, span, c, WIN.sill + span / 2);
+      part(WIN.halfWidth * 2, 0.07, c, WIN.top - 0.035);
+      part(WIN.halfWidth * 2, 0.08, c, WIN.sill + 0.04);
+      for (const y of [WIN.sill + 0.85, WIN.top - 0.5]) part(WIN.halfWidth * 2, 0.045, c, y);
+      kit.add(new THREE.BoxGeometry(WIN.halfWidth * 2 + 0.1, 0.03, 0.2), M.trim, matrix.clone().multiply(at(c, WIN.sill, -0.08)));
+      const pane = new THREE.Mesh(new THREE.PlaneGeometry(WIN.halfWidth * 2, span), M.glass);
+      pane.applyMatrix4(matrix.clone().multiply(at(c, WIN.sill + span / 2, zMid - 0.02)));
+      room.add(pane);
     }
+  };
 
-    // Væglamper på de lukkede vægge og mellem vinduerne.
-    if (kind !== 'window') {
-      for (const x of kind === 'clock' ? [] : [-0.95, 0.95]) {
-        const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.18, 0.06), warmLamp);
-        lamp.position.set(x, 1.9, -R + 0.04);
-        seg.add(lamp);
-        const glow = new THREE.Sprite(new THREE.SpriteMaterial({
-          map: glowTex, color: 0xffb066, transparent: true, opacity: 0.5,
-          blending: THREE.AdditiveBlending, depthWrite: false,
-        }));
-        glow.scale.set(0.9, 0.9, 1);
-        glow.position.set(x, 1.9, -R + 0.1);
-        seg.add(glow);
-      }
-    }
-  });
+  const width = maxX - minX;
+  const depth = maxZ - minZ;
+  const front = at(0, 0, minZ);
+  windowWall(width, [-3, 0, 3], front);
+  // Højre væg fortsætter forbi mødelokalerne. Lokal x er verdens z regnet fra væggens midte.
+  const rightMid = (minZ + maxZ + MEETING_DEPTH) / 2;
+  windowWall(depth + MEETING_DEPTH, [-2.6 - rightMid, -0.2 - rightMid], at(maxX, 0, rightMid, -Math.PI / 2));
 
-  // Gulv og loft som ottekanter, der flugter med væggenes yderside.
-  const octRadius = (R + THICK) / Math.cos(Math.PI / 8);
-  const floorTex = woodTexture();
-  floorTex.repeat.set(6, 3);
-  const floor = new THREE.Mesh(
-    new THREE.CircleGeometry(octRadius, 8, Math.PI / 8),
-    new THREE.MeshLambertMaterial({ map: floorTex }),
+  // Spartlet væg til venstre med neonskiltet og uret.
+  const plaster = plasterTexture();
+  plaster.repeat.set(depth / 2.2, H / 2.2);
+  const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(depth, H), new THREE.MeshLambertMaterial({ map: plaster }));
+  leftWall.position.set(minX, H / 2, (minZ + maxZ) / 2);
+  leftWall.rotation.y = Math.PI / 2;
+  room.add(leftWall);
+
+  const neon = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.6, 0.65),
+    new THREE.MeshBasicMaterial({ map: logoNeonTexture(), transparent: true, depthWrite: false, toneMapped: false }),
   );
+  neon.position.set(minX + 0.03, 2.2, -0.2);
+  neon.rotation.y = Math.PI / 2;
+  room.add(neon);
+  buildClock(room, at(minX + 0.02, 1.95, -2.5, Math.PI / 2), animated);
+
+  // --- Gulv og loft (fortsætter ind i mødelokalerne bag glasset) ---
+
+  const fullDepth = depth + MEETING_DEPTH;
+  const floorTex = floorTexture();
+  floorTex.repeat.set(width / 1.4, fullDepth / 1.4);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(width, fullDepth), new THREE.MeshLambertMaterial({ map: floorTex }));
   floor.rotation.x = -Math.PI / 2;
+  floor.position.set(0, 0, minZ + fullDepth / 2);
   room.add(floor);
 
-  const ceiling = new THREE.Mesh(
-    new THREE.CircleGeometry(octRadius, 8, Math.PI / 8),
-    new THREE.MeshLambertMaterial({ color: 0x4a362a }),
-  );
+  const rug = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 3.0), new THREE.MeshLambertMaterial({ map: rugTexture() }));
+  rug.rotation.x = -Math.PI / 2;
+  rug.position.set(0, 0.006, -0.5);
+  room.add(rug);
+
+  const ceilTex = ceilingTexture();
+  ceilTex.repeat.set(width / 0.6, fullDepth / 0.6);
+  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(width, fullDepth), new THREE.MeshLambertMaterial({ map: ceilTex }));
   ceiling.rotation.x = Math.PI / 2;
-  ceiling.position.y = WALL_H;
+  ceiling.position.set(0, H, minZ + fullDepth / 2);
   room.add(ceiling);
 
-  const ceilingRing = new THREE.Mesh(new THREE.TorusGeometry(2.4, 0.03, 8, 96), cyanLine);
-  ceilingRing.rotation.x = Math.PI / 2;
-  ceilingRing.position.y = WALL_H - 0.12;
-  room.add(ceilingRing);
-
-  for (const [inner, color] of [[1.35, CYAN], [3.2, AMBER]]) {
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(inner, inner + 0.04, 96),
-      new THREE.MeshBasicMaterial({ color, toneMapped: false }),
-    );
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.004;
-    room.add(ring);
+  // Indbyggede spots i loftet.
+  for (const x of [-3.3, -1.1, 1.1, 3.3]) {
+    for (const z of [-2.0, -0.2, 1.6]) {
+      kit.add(new THREE.CircleGeometry(0.075, 20), M.light, at(x, H - 0.004, z, 0, Math.PI / 2));
+      kit.add(new THREE.RingGeometry(0.075, 0.095, 20), M.alu, at(x, H - 0.003, z, 0, Math.PI / 2));
+    }
   }
 
-  // Bænke under sidevinduerne og et par planter bagved.
-  const fabric = new THREE.MeshLambertMaterial({ color: 0x1b2a4a });
-  for (const side of [-1, 1]) {
-    const bench = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.42, 1.8), fabric);
-    bench.position.set(side * 3.45, 0.21, 0);
-    room.add(bench);
-    const piping = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 1.8), cyanLine);
-    piping.position.set(side * 3.15, 0.42, 0);
-    room.add(piping);
-
-    const pot = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.22, 0.18, 0.5, 16),
-      new THREE.MeshLambertMaterial({ color: 0x15171c }),
-    );
-    pot.position.set(side * 2.6, 0.25, 2.6);
-    room.add(pot);
-    const leaves = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.45, 1),
-      new THREE.MeshLambertMaterial({ color: 0x1f4a2c, flatShading: true }),
-    );
-    leaves.position.set(side * 2.6, 0.85, 2.6);
-    room.add(leaves);
+  // Spiralfalsede ventilationsrør langs vinduesvæggen med to runde udblæsninger.
+  const ductMat = new THREE.MeshPhongMaterial({ map: ductTexture(), specular: 0x666666, shininess: 50 });
+  for (const [z, y, r] of [[-3.3, 2.8, 0.17], [-2.85, 2.86, 0.13]]) {
+    const geo = scaleUV(new THREE.CylinderGeometry(r, r, width, 20, 1, true), 1, width / 0.5);
+    kit.add(geo, ductMat, at(0, y, z, 0, 0, Math.PI / 2));
   }
+  for (const x of [-2.1, 2.2]) {
+    kit.add(scaleUV(new THREE.CylinderGeometry(0.06, 0.06, 0.2, 12, 1, true), 1, 0.4), ductMat, at(x, 2.7, -2.85));
+    kit.add(scaleUV(new THREE.CylinderGeometry(0.15, 0.15, 0.17, 20, 1, true), 1, 0.34), ductMat, at(x, 2.55, -2.85));
+    kit.add(new THREE.CircleGeometry(0.145, 20), M.blackMatte, at(x, 2.465, -2.85, 0, Math.PI / 2));
+  }
+
+  // --- Glasvæg og mødelokale bagved ---
+
+  const meetingBack = maxZ + MEETING_DEPTH;
+  kit.add(new THREE.PlaneGeometry(width, H), M.wall, at(0, H / 2, meetingBack, Math.PI));
+  kit.add(new THREE.PlaneGeometry(MEETING_DEPTH, H), M.wall, at(minX, H / 2, maxZ + MEETING_DEPTH / 2, Math.PI / 2));
+  const glassWall = new THREE.Mesh(new THREE.PlaneGeometry(width, H), M.glass);
+  glassWall.position.set(0, H / 2, maxZ);
+  room.add(glassWall);
+  for (let x = minX; x <= maxX + 0.01; x += 1.15) {
+    kit.add(new THREE.BoxGeometry(0.05, H, 0.07), M.alu, at(x, H / 2, maxZ));
+  }
+  kit.add(new THREE.BoxGeometry(width, 0.06, 0.08), M.alu, at(0, 0.03, maxZ));
+  kit.add(new THREE.BoxGeometry(width, 0.06, 0.08), M.alu, at(0, H - 0.03, maxZ));
+
+  const curtainTex = curtainTexture();
+  const curtainMat = new THREE.MeshLambertMaterial({ map: curtainTex, side: THREE.DoubleSide });
+  for (const [x0, x1] of [[minX + 0.1, -1.6], [1.2, maxX - 0.1]]) {
+    const w = x1 - x0;
+    kit.add(scaleUV(new THREE.PlaneGeometry(w, H - 0.1), w / 0.6, 1), curtainMat, at((x0 + x1) / 2, H / 2 - 0.02, maxZ + 0.12, Math.PI));
+  }
+  // Et lille mødebord bag den åbne del af glasset.
+  kit.add(new THREE.BoxGeometry(1.6, 0.04, 0.9), M.trim, at(-0.5, 0.74, maxZ + 1.0));
+  for (const dx of [-0.7, 0.7]) kit.add(new THREE.BoxGeometry(0.05, 0.72, 0.7), M.blackMatte, at(-0.5 + dx, 0.36, maxZ + 1.0));
+
+  // --- Søjlerne ---
+
+  const colTex = columnTexture();
+  colTex.repeat.set(3, 1);
+  const colMat = new THREE.MeshLambertMaterial({ map: colTex });
+  const capital = new THREE.LatheGeometry([
+    new THREE.Vector2(0.3, 0), new THREE.Vector2(0.34, 0.04), new THREE.Vector2(0.44, 0.12),
+    new THREE.Vector2(0.52, 0.2), new THREE.Vector2(0.53, 0.26), new THREE.Vector2(0.5, 0.3),
+    new THREE.Vector2(0.5, 0.42),
+  ], 32);
+  for (const x of [-3.3, 3.3]) {
+    const z = 1.5;
+    kit.add(new THREE.CylinderGeometry(0.3, 0.3, H - 0.5, 28, 1, true), colMat, at(x, 0.08 + (H - 0.5) / 2, z));
+    kit.add(new THREE.CylinderGeometry(0.34, 0.34, 0.08, 28), M.trim, at(x, 0.04, z));
+    kit.add(capital, M.trim, at(x, H - 0.42, z));
+    kit.add(new THREE.TorusGeometry(0.47, 0.06, 8, 32), M.trim, at(x, H - 0.24, z, 0, Math.PI / 2));
+    physics.addStatic(new CANNON.Cylinder(0.32, 0.32, H, 12), { x, y: H / 2, z });
+  }
+
+  // --- Møbler ---
+
+  // Lav hvid bænk langs vinduerne med de to headsets, som står i den rigtige reception.
+  const benchD = 0.42;
+  kit.add(new THREE.BoxGeometry(width - 0.4, 0.06, benchD), M.trim, at(0, 0.45, minZ + benchD / 2));
+  for (const x of [-4.1, -1.4, 1.4, 4.1]) kit.add(new THREE.BoxGeometry(0.06, 0.42, benchD - 0.04), M.trim, at(x, 0.21, minZ + benchD / 2));
+  physics.addBox(new THREE.Vector3(width - 0.4, 0.48, benchD), { x: 0, y: 0.24, z: minZ + benchD / 2 });
+
+  const headsetBody = new RoundedBoxGeometry(0.19, 0.11, 0.1, 3, 0.03);
+  const headsetFace = new RoundedBoxGeometry(0.17, 0.09, 0.02, 2, 0.01);
+  for (const x of [-1.85, -1.2]) {
+    const base = at(x, 0.48, minZ + 0.2);
+    const part = (geo, mat, m) => kit.add(geo, mat, base.clone().multiply(m));
+    part(new THREE.CylinderGeometry(0.06, 0.07, 0.015, 20), M.trim, at(0, 0.0075, 0));
+    part(new THREE.CylinderGeometry(0.012, 0.012, 0.14, 8), M.trim, at(0, 0.07, 0));
+    part(headsetBody, M.trim, at(0, 0.19, 0.01));
+    part(headsetFace, M.blackMatte, at(0, 0.19, 0.06));
+    part(new THREE.TorusGeometry(0.09, 0.012, 6, 24, Math.PI), M.blackMatte, at(0, 0.2, -0.04, 0, -Math.PI / 2));
+  }
+
+  // Elgmaleriet mellem vinduerne.
+  const painting = new THREE.Mesh(
+    new THREE.BoxGeometry(1.0, 1.5, 0.04),
+    [M.trim, M.trim, M.trim, M.trim, new THREE.MeshLambertMaterial({ map: paintingTexture() }), M.trim],
+  );
+  painting.position.set(-1.5, 1.8, minZ + 0.03);
+  room.add(painting);
+
+  // Receptionsskranken i navy med "CO:" og lysende firkanter på forsiden.
+  const desk = { x: 3.2, z: -1.5, w: 0.7, h: 1.08, l: 2.2 };
+  kit.add(new THREE.BoxGeometry(desk.w, desk.h - 0.06, desk.l), M.navy, at(desk.x, (desk.h - 0.06) / 2 + 0.06, desk.z));
+  kit.add(new THREE.BoxGeometry(desk.w - 0.06, 0.06, desk.l - 0.06), M.blackMatte, at(desk.x, 0.03, desk.z));
+  const deskFront = new THREE.Mesh(
+    new THREE.PlaneGeometry(desk.l, desk.h - 0.06),
+    new THREE.MeshLambertMaterial({ map: deskFrontTexture() }),
+  );
+  deskFront.position.set(desk.x - desk.w / 2 - 0.002, (desk.h - 0.06) / 2 + 0.06, desk.z);
+  deskFront.rotation.y = -Math.PI / 2;
+  room.add(deskFront);
+  physics.addBox(new THREE.Vector3(desk.w, desk.h, desk.l), { x: desk.x, y: desk.h / 2, z: desk.z });
+  // Vase med hvide blomster og et par lys på skranken.
+  const vase = new THREE.LatheGeometry([
+    new THREE.Vector2(0.05, 0), new THREE.Vector2(0.11, 0.06), new THREE.Vector2(0.12, 0.14),
+    new THREE.Vector2(0.08, 0.24), new THREE.Vector2(0.06, 0.28),
+  ], 20);
+  kit.add(vase, M.wall, at(desk.x, desk.h, desk.z - 0.75));
+  const bloom = new THREE.IcosahedronGeometry(0.06, 1);
+  const rnd = seededRandom(31);
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2;
+    kit.add(bloom, M.trim, at(desk.x + Math.cos(a) * 0.1 * rnd(), desk.h + 0.36 + rnd() * 0.12, desk.z - 0.75 + Math.sin(a) * 0.12));
+  }
+  for (const [dz, h] of [[0.6, 0.18], [0.68, 0.12]]) {
+    kit.add(new THREE.CylinderGeometry(0.035, 0.035, h, 16), M.trim, at(desk.x, desk.h + h / 2, desk.z + dz));
+    kit.add(new THREE.SphereGeometry(0.012, 8, 6), M.warm, at(desk.x, desk.h + h + 0.012, desk.z + dz));
+  }
+
+  // Sorte skalstole i læder på drejefod.
+  const shell = new THREE.LatheGeometry([
+    new THREE.Vector2(0.0, 0.0), new THREE.Vector2(0.3, 0.02), new THREE.Vector2(0.36, 0.12),
+    new THREE.Vector2(0.37, 0.3), new THREE.Vector2(0.35, 0.36),
+  ], 24, Math.PI * 0.32, Math.PI * 1.36);
+  const cushion = new THREE.CylinderGeometry(0.3, 0.3, 0.06, 24);
+  for (const [x, z, lookX, lookZ] of [[-2.0, 1.0, 0, -0.3], [2.0, 1.1, 0, -0.3], [-2.5, -2.1, 0, -0.5]]) {
+    const base = at(x, 0, z, Math.atan2(lookX - x, lookZ - z));
+    const part = (geo, mat, m) => kit.add(geo, mat, base.clone().multiply(m));
+    const shellMatrix = at(0, 0.42, 0);
+    shellMatrix.scale(new THREE.Vector3(1, 1.15, 1));
+    part(shell, M.black, shellMatrix);
+    part(cushion, M.black, at(0, 0.47, 0.02));
+    part(new THREE.CylinderGeometry(0.025, 0.025, 0.4, 10), M.blackMatte, at(0, 0.22, 0));
+    for (let k = 0; k < 4; k++) {
+      const a = (k / 4) * Math.PI * 2 + Math.PI / 4;
+      part(new THREE.BoxGeometry(0.03, 0.025, 0.32), M.blackMatte, at(Math.sin(a) * 0.15, 0.03, Math.cos(a) * 0.15, a));
+    }
+    physics.addBox(new THREE.Vector3(0.74, 0.84, 0.74), { x, y: 0.42, z });
+  }
+
+  // Sort gulvlampe med stor skærm.
+  const lamp = { x: -2.25, z: -3.45 };
+  kit.add(new THREE.CylinderGeometry(0.16, 0.16, 0.025, 24), M.blackMatte, at(lamp.x, 0.0125, lamp.z));
+  kit.add(new THREE.CylinderGeometry(0.012, 0.012, 1.7, 8), M.blackMatte, at(lamp.x, 0.85, lamp.z));
+  kit.add(new THREE.CylinderGeometry(0.28, 0.32, 0.3, 32, 1, true), new THREE.MeshLambertMaterial({ color: 0x1b1c1f, side: THREE.DoubleSide }), at(lamp.x, 1.75, lamp.z));
+  kit.add(new THREE.CircleGeometry(0.3, 32), M.warm, at(lamp.x, 1.61, lamp.z, 0, Math.PI / 2));
+  const lampGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTex, color: 0xffe2b0, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  lampGlow.scale.set(1.2, 0.8, 1);
+  lampGlow.position.set(lamp.x, 1.5, lamp.z);
+  room.add(lampGlow);
+
+  // Violinfigen i mørke krukker.
+  const potGeo = new THREE.LatheGeometry([
+    new THREE.Vector2(0.12, 0), new THREE.Vector2(0.24, 0.08), new THREE.Vector2(0.29, 0.24),
+    new THREE.Vector2(0.24, 0.42), new THREE.Vector2(0.2, 0.45), new THREE.Vector2(0.18, 0.43),
+  ], 24);
+  const plants = [[-3.95, -3.35, 2.05], [-3.3, -3.45, 1.9], [4.05, 0.75, 1.8]];
+  const leafGeo = new THREE.PlaneGeometry(0.2, 0.25).translate(0, 0.125, 0);
+  const leaves = new THREE.InstancedMesh(
+    leafGeo,
+    new THREE.MeshLambertMaterial({ map: leafTexture(), alphaTest: 0.5, side: THREE.DoubleSide }),
+    plants.length * 70,
+  );
+  let leafCount = 0;
+  const leafRnd = seededRandom(13);
+  for (const [x, z, top] of plants) {
+    kit.add(potGeo, M.pot, at(x, 0, z));
+    physics.addStatic(new CANNON.Cylinder(0.27, 0.22, 0.45, 10), { x, y: 0.225, z });
+    for (const lean of [-0.08, 0.1]) {
+      kit.add(new THREE.CylinderGeometry(0.012, 0.02, top - 0.4, 6), M.bark, at(x + lean * 2, 0.4 + (top - 0.4) / 2, z, 0, 0, lean));
+    }
+    for (let i = 0; i < 70; i++) {
+      const h = 0.95 + leafRnd() * (top - 0.95);
+      const spread = 0.12 + 0.3 * Math.sin(((h - 0.95) / (top - 0.95)) * Math.PI * 0.9);
+      const a = leafRnd() * Math.PI * 2;
+      const r = spread * (0.3 + leafRnd() * 0.7);
+      const m = at(x + Math.sin(a) * r, h, z + Math.cos(a) * r, a, 0.4 + leafRnd() * 0.8, (leafRnd() - 0.5) * 0.6);
+      m.scale(new THREE.Vector3().setScalar(0.8 + leafRnd() * 0.5));
+      leaves.setMatrixAt(leafCount++, m);
+    }
+  }
+  room.add(leaves);
+
+  kit.build(room);
 }
 
-// Urskive der viser den rigtige tid, ligesom uret på tårnet.
-function buildClock(seg, cyanLine, animated) {
+// Uret viser den rigtige tid. Sekundviseren er i CO:PLAY-orange.
+function buildClock(parent, matrix, animated) {
   const clock = new THREE.Group();
-  clock.position.set(0, 2.0, -R + 0.02);
-  seg.add(clock);
+  clock.applyMatrix4(matrix);
+  parent.add(clock);
 
   clock.add(new THREE.Mesh(
-    new THREE.CircleGeometry(0.95, 64),
-    new THREE.MeshBasicMaterial({ map: clockFaceTexture(), toneMapped: false }),
+    new THREE.CircleGeometry(0.5, 64),
+    new THREE.MeshBasicMaterial({ map: clockFaceTexture() }),
   ));
-  clock.add(new THREE.Mesh(new THREE.TorusGeometry(0.97, 0.025, 8, 96), cyanLine));
+  clock.add(new THREE.Mesh(new THREE.TorusGeometry(0.51, 0.02, 8, 96), new THREE.MeshLambertMaterial({ color: CVI.navy })));
+  clock.add(new THREE.Mesh(new THREE.TorusGeometry(0.485, 0.006, 6, 96), new THREE.MeshBasicMaterial({ color: CVI.cyan })));
 
-  const hand = (length, width, material) => {
-    const geo = new THREE.BoxGeometry(width, length, 0.01);
-    geo.translate(0, length / 2 - 0.06, 0);
+  const white = new THREE.MeshBasicMaterial({ color: CVI.white });
+  const hand = (length, width, material, z) => {
+    const geo = new THREE.BoxGeometry(width, length, 0.008);
+    geo.translate(0, length / 2 - 0.05, 0);
     const mesh = new THREE.Mesh(geo, material);
-    mesh.position.z = 0.02;
+    mesh.position.z = z;
     clock.add(mesh);
     return mesh;
   };
-  const hourHand = hand(0.48, 0.045, cyanLine);
-  const minuteHand = hand(0.72, 0.03, cyanLine);
-  const secondHand = hand(0.78, 0.012, new THREE.MeshBasicMaterial({ color: AMBER, toneMapped: false }));
-  secondHand.position.z = 0.03;
+  const hourHand = hand(0.27, 0.028, white, 0.012);
+  const minuteHand = hand(0.4, 0.018, white, 0.02);
+  const secondHand = hand(0.44, 0.008, new THREE.MeshBasicMaterial({ color: CVI.orange }), 0.028);
+  const hub = new THREE.Mesh(new THREE.CircleGeometry(0.022, 20), new THREE.MeshBasicMaterial({ color: CVI.orange }));
+  hub.position.z = 0.034;
+  clock.add(hub);
 
   animated.push(() => {
     const now = new Date();
@@ -292,8 +482,8 @@ function buildCity(stage, animated, holoMaterials) {
     addBuilding(x, z, 10 + rnd() * 22, 10 + rnd() * 22, h, new THREE.Color(t * 0.9, t * 0.95, t));
   }
 
-  // Nabohuset med det store CO:PLAY-skilt, set gennem vinduet skråt til højre.
-  const signSpot = new THREE.Vector3(21, 0, -21);
+  // Nabohuset med det store CO:PLAY-skilt, set gennem vinduet forrest til højre.
+  const signSpot = new THREE.Vector3(15, 0, -21.5);
   addBuilding(signSpot.x, signSpot.z, 11, 11, 32, new THREE.Color(0.5, 0.5, 0.55));
 
   stage.add(new THREE.Mesh(
@@ -302,7 +492,7 @@ function buildCity(stage, animated, holoMaterials) {
   ));
   stage.add(new THREE.Mesh(
     mergeGeometries(strips),
-    new THREE.MeshBasicMaterial({ color: CYAN, toneMapped: false }),
+    new THREE.MeshBasicMaterial({ color: CVI.cyan, toneMapped: false }),
   ));
 
   const sign = new THREE.Group();
@@ -311,20 +501,20 @@ function buildCity(stage, animated, holoMaterials) {
   const neon = new THREE.Mesh(
     new THREE.PlaneGeometry(12, 3),
     new THREE.MeshBasicMaterial({
-      map: neonTexture('CO:PLAY'), transparent: true, depthWrite: false, toneMapped: false,
+      map: logoNeonTexture(), transparent: true, depthWrite: false, toneMapped: false,
     }),
   );
   neon.position.y = 3.2;
   sign.add(neon);
   for (const x of [-4, 0, 4]) {
-    const strut = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.2, 0.2), new THREE.MeshBasicMaterial({ color: 0x0b1424 }));
+    const strut = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.2, 0.2), new THREE.MeshBasicMaterial({ color: CVI.navy }));
     strut.position.set(x, 1.1, -0.1);
     sign.add(strut);
   }
   stage.add(sign);
 
   const beaconMat = new THREE.PointsMaterial({
-    color: 0xff3344, size: 4, sizeAttenuation: false, transparent: true,
+    color: CVI.orange, size: 4, sizeAttenuation: false, transparent: true,
   });
   const beaconGeo = new THREE.BufferGeometry();
   beaconGeo.setAttribute('position', new THREE.Float32BufferAttribute(beacons, 3));
@@ -346,7 +536,7 @@ function buildCity(stage, animated, holoMaterials) {
   stage.add(ground);
 }
 
-// Det kugleformede tårn fra billedet.
+// Det kugleformede tårn fra konceptbilledet, langt ude i byen.
 function buildLandmark(stage, winTex) {
   const height = 180;
   const radius = 22;
@@ -361,12 +551,12 @@ function buildLandmark(stage, winTex) {
     new THREE.LatheGeometry(profile, 40),
     new THREE.MeshBasicMaterial({ map: tex, color: 0x9ec9ff }),
   );
-  // Ses gennem vinduet til venstre.
-  const spot = new THREE.Vector3(-180, GROUND, -15);
+  // Ses gennem vinduet forrest til venstre.
+  const spot = new THREE.Vector3(-103, GROUND, -147);
   tower.position.copy(spot);
   stage.add(tower);
 
-  const ringMat = new THREE.MeshBasicMaterial({ color: CYAN, toneMapped: false });
+  const ringMat = new THREE.MeshBasicMaterial({ color: CVI.cyan, toneMapped: false });
   for (const t of [0.2, 0.45, 0.7]) {
     const r = radius * Math.sin(Math.PI * (0.25 + 0.75 * t)) + 0.3;
     const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.35, 6, 64), ringMat);
@@ -376,7 +566,7 @@ function buildLandmark(stage, winTex) {
   }
 }
 
-// Svævetog i et glasrør, der kører rundt om tårnet i gæstens øjenhøjde.
+// Svævetog i et glasrør, der kører rundt om huset i gæstens øjenhøjde.
 function buildMonorail(stage, animated) {
   const points = [];
   for (let k = 0; k < 10; k++) {
@@ -387,11 +577,11 @@ function buildMonorail(stage, animated) {
   const curve = new THREE.CatmullRomCurve3(points, true, 'centripetal');
   const shifted = (dy) => new THREE.CatmullRomCurve3(points.map((p) => p.clone().setY(p.y + dy)), true, 'centripetal');
 
-  const trackMat = new THREE.MeshBasicMaterial({ color: 0x0b1424 });
+  const trackMat = new THREE.MeshBasicMaterial({ color: CVI.navy });
   stage.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 300, 0.7, 6, true), trackMat));
   stage.add(new THREE.Mesh(
     new THREE.TubeGeometry(shifted(0.8), 300, 0.15, 5, true),
-    new THREE.MeshBasicMaterial({ color: CYAN, toneMapped: false }),
+    new THREE.MeshBasicMaterial({ color: CVI.cyan, toneMapped: false }),
   ));
   stage.add(new THREE.Mesh(
     new THREE.TubeGeometry(shifted(2.2), 300, 2.6, 12, true),
@@ -410,8 +600,8 @@ function buildMonorail(stage, animated) {
   }
   stage.add(new THREE.Mesh(mergeGeometries(pillars), trackMat));
 
-  const bodyMat = new THREE.MeshBasicMaterial({ color: 0x1a2b45 });
-  const windowMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0, toneMapped: false });
+  const bodyMat = new THREE.MeshBasicMaterial({ color: CVI.blue });
+  const windowMat = new THREE.MeshBasicMaterial({ color: 0xf6e3c8, toneMapped: false });
   const cars = [];
   for (let i = 0; i < 5; i++) {
     const car = new THREE.Group();
@@ -441,23 +631,23 @@ function buildMonorail(stage, animated) {
 function buildDrones(stage, animated, holoMaterials) {
   // Placeret så hver kugle kan ses gennem et af vinduerne.
   const spots = [
-    [-70, 25, 0, 4],
-    [50, 30, -50, 5],
+    [-60, 26, -80, 4],
+    [55, 28, -75, 5],
     [-6, 30, -90, 4.5],
-    [75, 22, 8, 4],
+    [80, 24, -10, 4],
   ];
-  const body = new THREE.MeshLambertMaterial({ color: 0x0d1830 });
+  const body = new THREE.MeshLambertMaterial({ color: CVI.navy });
   spots.forEach(([x, y, z, r], i) => {
     const drone = new THREE.Group();
     drone.position.set(x, y, z);
     drone.add(new THREE.Mesh(new THREE.SphereGeometry(r, 32, 16), body));
-    const shellMat = hologramMaterial('#36d6ff', { opacity: 0.6 });
+    const shellMat = hologramMaterial(CVI.cyan, { opacity: 0.6 });
     holoMaterials.push(shellMat);
     drone.add(new THREE.Mesh(new THREE.SphereGeometry(r * 1.04, 32, 16), shellMat));
     const beamLength = 40;
     const beam = new THREE.Mesh(
       new THREE.CylinderGeometry(r * 0.2, r * 2.2, beamLength, 24, 1, true),
-      beamMaterial('#36d6ff', 0.16),
+      beamMaterial(CVI.cyan, 0.16),
     );
     beam.position.y = -beamLength / 2 - r * 0.6;
     drone.add(beam);
@@ -472,6 +662,11 @@ function buildSky(stage) {
   const sky = new THREE.Mesh(
     new THREE.SphereGeometry(1500, 32, 16),
     new THREE.ShaderMaterial({
+      // Blå time som på billederne fra receptionen: lysere blå i horisonten, navy oppe.
+      uniforms: {
+        uHorizon: { value: new THREE.Color(SKY_HORIZON) },
+        uZenith: { value: new THREE.Color(CVI.navy) },
+      },
       side: THREE.BackSide,
       depthWrite: false,
       vertexShader: /* glsl */ `
@@ -482,12 +677,12 @@ function buildSky(stage) {
         }
       `,
       fragmentShader: /* glsl */ `
+        uniform vec3 uHorizon;
+        uniform vec3 uZenith;
         varying vec3 vDir;
         void main() {
           float h = smoothstep(0.0, 0.6, vDir.y);
-          vec3 horizon = vec3(0.051, 0.114, 0.227);
-          vec3 zenith = vec3(0.008, 0.016, 0.043);
-          gl_FragColor = vec4(mix(horizon, zenith, h), 1.0);
+          gl_FragColor = vec4(mix(uHorizon, uZenith, h), 1.0);
         }
       `,
     }),
@@ -505,6 +700,6 @@ function buildSky(stage) {
   const starGeo = new THREE.BufferGeometry();
   starGeo.setAttribute('position', new THREE.Float32BufferAttribute(stars, 3));
   stage.add(new THREE.Points(starGeo, new THREE.PointsMaterial({
-    color: 0x9fbfff, size: 1.5, sizeAttenuation: false, transparent: true, opacity: 0.6, fog: false,
+    color: 0xcfe0ff, size: 1.5, sizeAttenuation: false, transparent: true, opacity: 0.3, fog: false,
   })));
 }

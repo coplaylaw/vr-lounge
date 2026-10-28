@@ -3,6 +3,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { CANNON } from './physics.js';
 import { CVI } from './palette.js';
+import { LightBaker, bakedMaterial } from './bake.js';
+import { DESK, DESK_TOP, PRINTER } from './desk.js';
 import {
   seededRandom, windowTexture, logoNeonTexture, clockFaceTexture, glowTexture, hologramMaterial, beamMaterial,
   floorTexture, plasterTexture, columnTexture, ceilingTexture, ductTexture, rugTexture, curtainTexture,
@@ -58,11 +60,12 @@ export function buildWorld(stage, physics) {
   const holoMaterials = [];
   const glowTex = glowTexture();
 
-  // Lyst og jævnt kontorlys ovenfra, lidt varmt fra gulvet.
-  stage.add(new THREE.HemisphereLight(0xffffff, 0xf2ede6, 2.2));
-  const sun = new THREE.DirectionalLight(0xfff4e6, 1.1);
-  sun.position.set(1.5, 4, 2);
-  stage.add(sun);
+  // Gulv, vægge og loft har bagt lys (se bake.js). Disse lys giver møbler, robot og ting form:
+  // lyst ovenfra fra spotsene, mørkere på undersiden.
+  stage.add(new THREE.HemisphereLight(0xfff6ec, 0x5a524b, 1.0));
+  const key = new THREE.DirectionalLight(0xfff0dc, 1.7);
+  key.position.set(0.6, 4, 1.0);
+  stage.add(key);
 
   physics.addRoom(ROOM);
   buildRoom(stage, physics, glowTex, animated);
@@ -82,6 +85,8 @@ function buildRoom(stage, physics, glowTex, animated) {
   const room = new THREE.Group();
   stage.add(room);
   const kit = new Kit();
+  const light = new LightBaker();
+  const meetingBack = maxZ + MEETING_DEPTH;
 
   const M = {
     wall: new THREE.MeshLambertMaterial({ color: 0xf1f0ec }),
@@ -102,7 +107,7 @@ function buildRoom(stage, physics, glowTex, animated) {
   // --- Vægge ---
 
   // Væg med vinduesåbninger. Lokalt: x langs væggen, indersiden ved z = 0, tykkelsen bagud.
-  const windowWall = (length, centers, matrix) => {
+  const windowWall = (length, centers, matrix, material) => {
     const shape = new THREE.Shape();
     shape.moveTo(-length / 2, 0);
     shape.lineTo(length / 2, 0);
@@ -120,7 +125,9 @@ function buildRoom(stage, physics, glowTex, animated) {
     }
     const geo = new THREE.ExtrudeGeometry(shape, { depth: THICK, bevelEnabled: false });
     geo.translate(0, 0, -THICK);
-    kit.add(geo, M.wall, matrix);
+    const wall = new THREE.Mesh(geo, material);
+    wall.applyMatrix4(matrix);
+    room.add(wall);
 
     // Hvide sprosser: to fag og tre rækker ruder, som de gamle vinduer i huset.
     const zMid = -THICK * 0.6;
@@ -137,21 +144,31 @@ function buildRoom(stage, physics, glowTex, animated) {
       const pane = new THREE.Mesh(new THREE.PlaneGeometry(WIN.halfWidth * 2, span), M.glass);
       pane.applyMatrix4(matrix.clone().multiply(at(c, WIN.sill + span / 2, zMid - 0.02)));
       room.add(pane);
+      // Svagt blåt skumringslys ind ad vinduet.
+      const p = new THREE.Vector3(c, 1.8, -0.4).applyMatrix4(matrix);
+      const d = new THREE.Vector3(0, 0, 1).transformDirection(matrix);
+      light.light(p.toArray(), 0x8fa9d6, 0.35, { dir: d.toArray(), cutoff: 0, power: 1, shadows: false });
     }
   };
 
   const width = maxX - minX;
   const depth = maxZ - minZ;
-  const front = at(0, 0, minZ);
-  windowWall(width, [-3, 0, 3], front);
-  // Højre væg fortsætter forbi mødelokalerne. Lokal x er verdens z regnet fra væggens midte.
-  const rightMid = (minZ + maxZ + MEETING_DEPTH) / 2;
-  windowWall(depth + MEETING_DEPTH, [-2.6 - rightMid, -0.2 - rightMid], at(maxX, 0, rightMid, -Math.PI / 2));
+  const wallColor = 0xf1f0ec;
+  const frontWallMat = bakedMaterial(null, { color: wallColor });
+  windowWall(width, [-3, 0, 3], at(0, 0, minZ), frontWallMat);
+  // Højre væg fortsætter forbi mødelokalet. Lokal x er verdens z regnet fra væggens midte.
+  // Vinduerne sidder på hver side af skranken, så uret kan hænge på den hvide væg bag den.
+  const rightLength = depth + MEETING_DEPTH;
+  const rightMid = (minZ + meetingBack) / 2;
+  const rightWallMat = bakedMaterial(null, { color: wallColor });
+  windowWall(rightLength, [-3.0 - rightMid, 0.0 - rightMid], at(maxX, 0, rightMid, -Math.PI / 2), rightWallMat);
+  buildClock(room, at(maxX - 0.02, 2.0, -1.5, -Math.PI / 2), animated);
 
-  // Spartlet væg til venstre med neonskiltet og uret.
+  // Spartlet væg til venstre med neonskiltet.
   const plaster = plasterTexture();
   plaster.repeat.set(depth / 2.2, H / 2.2);
-  const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(depth, H), new THREE.MeshLambertMaterial({ map: plaster }));
+  const leftWallMat = bakedMaterial(null, { map: plaster });
+  const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(depth, H), leftWallMat);
   leftWall.position.set(minX, H / 2, (minZ + maxZ) / 2);
   leftWall.rotation.y = Math.PI / 2;
   room.add(leftWall);
@@ -160,39 +177,46 @@ function buildRoom(stage, physics, glowTex, animated) {
     new THREE.PlaneGeometry(2.6, 0.65),
     new THREE.MeshBasicMaterial({ map: logoNeonTexture(), transparent: true, depthWrite: false, toneMapped: false }),
   );
-  neon.position.set(minX + 0.03, 2.2, -0.2);
+  neon.position.set(minX + 0.03, 2.15, -1.0);
   neon.rotation.y = Math.PI / 2;
   room.add(neon);
-  buildClock(room, at(minX + 0.02, 1.95, -2.5, Math.PI / 2), animated);
 
   // --- Gulv og loft (fortsætter ind i mødelokalerne bag glasset) ---
 
   const fullDepth = depth + MEETING_DEPTH;
   const floorTex = floorTexture();
   floorTex.repeat.set(width / 1.4, fullDepth / 1.4);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(width, fullDepth), new THREE.MeshLambertMaterial({ map: floorTex }));
+  const floorMat = bakedMaterial(null, { map: floorTex });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(width, fullDepth), floorMat);
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(0, 0, minZ + fullDepth / 2);
   room.add(floor);
 
-  const rug = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 3.0), new THREE.MeshLambertMaterial({ map: rugTexture() }));
+  const RUG = { x: 0, z: -0.5, w: 3.6, d: 3.0 };
+  const rugMat = bakedMaterial(null, { map: rugTexture() });
+  const rug = new THREE.Mesh(new THREE.PlaneGeometry(RUG.w, RUG.d), rugMat);
   rug.rotation.x = -Math.PI / 2;
-  rug.position.set(0, 0.006, -0.5);
+  rug.position.set(RUG.x, 0.006, RUG.z);
   room.add(rug);
 
   const ceilTex = ceilingTexture();
   ceilTex.repeat.set(width / 0.6, fullDepth / 0.6);
-  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(width, fullDepth), new THREE.MeshLambertMaterial({ map: ceilTex }));
+  const ceilingMat = bakedMaterial(null, { map: ceilTex });
+  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(width, fullDepth), ceilingMat);
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.set(0, H, minZ + fullDepth / 2);
   room.add(ceiling);
 
-  // Indbyggede spots i loftet.
+  // Indbyggede spots i loftet. Rækken ved vinduerne er svagere, fordi den sidder tæt på væggen.
+  const spot = (x, z, intensity) => {
+    kit.add(new THREE.CircleGeometry(0.075, 20), M.light, at(x, H - 0.004, z, 0, Math.PI / 2));
+    kit.add(new THREE.RingGeometry(0.075, 0.095, 20), M.alu, at(x, H - 0.003, z, 0, Math.PI / 2));
+    light.light([x, H - 0.03, z], 0xffe9d2, intensity, { cutoff: 0.3, power: 4 });
+  };
   for (const x of [-3.3, -1.1, 1.1, 3.3]) {
-    for (const z of [-2.0, -0.2, 1.6]) {
-      kit.add(new THREE.CircleGeometry(0.075, 20), M.light, at(x, H - 0.004, z, 0, Math.PI / 2));
-      kit.add(new THREE.RingGeometry(0.075, 0.095, 20), M.alu, at(x, H - 0.003, z, 0, Math.PI / 2));
-    }
+    spot(x, -3.6, 1.4);
+    for (const z of [-2.0, -0.2, 1.6]) spot(x, z, 2.1);
+    spot(x, maxZ + MEETING_DEPTH / 2, 1.0);
   }
 
   // Spiralfalsede ventilationsrør langs vinduesvæggen med to runde udblæsninger.
@@ -200,6 +224,7 @@ function buildRoom(stage, physics, glowTex, animated) {
   for (const [z, y, r] of [[-3.3, 2.8, 0.17], [-2.85, 2.86, 0.13]]) {
     const geo = scaleUV(new THREE.CylinderGeometry(r, r, width, 20, 1, true), 1, width / 0.5);
     kit.add(geo, ductMat, at(0, y, z, 0, 0, Math.PI / 2));
+    light.box([minX, y - r, z - r * 0.85], [maxX, y + r, z + r * 0.85]);
   }
   for (const x of [-2.1, 2.2]) {
     kit.add(scaleUV(new THREE.CylinderGeometry(0.06, 0.06, 0.2, 12, 1, true), 1, 0.4), ductMat, at(x, 2.7, -2.85));
@@ -209,7 +234,6 @@ function buildRoom(stage, physics, glowTex, animated) {
 
   // --- Glasvæg og mødelokale bagved ---
 
-  const meetingBack = maxZ + MEETING_DEPTH;
   kit.add(new THREE.PlaneGeometry(width, H), M.wall, at(0, H / 2, meetingBack, Math.PI));
   kit.add(new THREE.PlaneGeometry(MEETING_DEPTH, H), M.wall, at(minX, H / 2, maxZ + MEETING_DEPTH / 2, Math.PI / 2));
   const glassWall = new THREE.Mesh(new THREE.PlaneGeometry(width, H), M.glass);
@@ -248,6 +272,8 @@ function buildRoom(stage, physics, glowTex, animated) {
     kit.add(capital, M.trim, at(x, H - 0.42, z));
     kit.add(new THREE.TorusGeometry(0.47, 0.06, 8, 32), M.trim, at(x, H - 0.24, z, 0, Math.PI / 2));
     physics.addStatic(new CANNON.Cylinder(0.32, 0.32, H, 12), { x, y: H / 2, z });
+    light.cylinder(x, z, 0.3, 0, H);
+    light.cylinder(x, z, 0.5, H - 0.3, H);
   }
 
   // --- Møbler ---
@@ -257,6 +283,7 @@ function buildRoom(stage, physics, glowTex, animated) {
   kit.add(new THREE.BoxGeometry(width - 0.4, 0.06, benchD), M.trim, at(0, 0.45, minZ + benchD / 2));
   for (const x of [-4.1, -1.4, 1.4, 4.1]) kit.add(new THREE.BoxGeometry(0.06, 0.42, benchD - 0.04), M.trim, at(x, 0.21, minZ + benchD / 2));
   physics.addBox(new THREE.Vector3(width - 0.4, 0.48, benchD), { x: 0, y: 0.24, z: minZ + benchD / 2 });
+  light.box([minX + 0.2, 0.42, minZ], [maxX - 0.2, 0.48, minZ + benchD]);
 
   const headsetBody = new RoundedBoxGeometry(0.19, 0.11, 0.1, 3, 0.03);
   const headsetFace = new RoundedBoxGeometry(0.17, 0.09, 0.02, 2, 0.01);
@@ -290,6 +317,7 @@ function buildRoom(stage, physics, glowTex, animated) {
   deskFront.rotation.y = -Math.PI / 2;
   room.add(deskFront);
   physics.addBox(new THREE.Vector3(desk.w, desk.h, desk.l), { x: desk.x, y: desk.h / 2, z: desk.z });
+  light.box([desk.x - desk.w / 2, 0, desk.z - desk.l / 2], [desk.x + desk.w / 2, desk.h, desk.z + desk.l / 2]);
   // Vase med hvide blomster og et par lys på skranken.
   const vase = new THREE.LatheGeometry([
     new THREE.Vector2(0.05, 0), new THREE.Vector2(0.11, 0.06), new THREE.Vector2(0.12, 0.14),
@@ -326,6 +354,8 @@ function buildRoom(stage, physics, glowTex, animated) {
       part(new THREE.BoxGeometry(0.03, 0.025, 0.32), M.blackMatte, at(Math.sin(a) * 0.15, 0.03, Math.cos(a) * 0.15, a));
     }
     physics.addBox(new THREE.Vector3(0.74, 0.84, 0.74), { x, y: 0.42, z });
+    light.cylinder(x, z, 0.36, 0.42, 0.85);
+    light.cylinder(x, z, 0.16, 0, 0.05, 0.6);
   }
 
   // Sort gulvlampe med stor skærm.
@@ -334,6 +364,9 @@ function buildRoom(stage, physics, glowTex, animated) {
   kit.add(new THREE.CylinderGeometry(0.012, 0.012, 1.7, 8), M.blackMatte, at(lamp.x, 0.85, lamp.z));
   kit.add(new THREE.CylinderGeometry(0.28, 0.32, 0.3, 32, 1, true), new THREE.MeshLambertMaterial({ color: 0x1b1c1f, side: THREE.DoubleSide }), at(lamp.x, 1.75, lamp.z));
   kit.add(new THREE.CircleGeometry(0.3, 32), M.warm, at(lamp.x, 1.61, lamp.z, 0, Math.PI / 2));
+  light.cylinder(lamp.x, lamp.z, 0.3, 1.6, 1.9);
+  light.light([lamp.x, 1.58, lamp.z], 0xffc98a, 0.7, { cutoff: 0.15, power: 1 });
+  light.light([lamp.x, 1.92, lamp.z], 0xffc98a, 0.6, { dir: [0, 1, 0], cutoff: 0.3, power: 1 });
   const lampGlow = new THREE.Sprite(new THREE.SpriteMaterial({
     map: glowTex, color: 0xffe2b0, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false,
   }));
@@ -358,6 +391,8 @@ function buildRoom(stage, physics, glowTex, animated) {
   for (const [x, z, top] of plants) {
     kit.add(potGeo, M.pot, at(x, 0, z));
     physics.addStatic(new CANNON.Cylinder(0.27, 0.22, 0.45, 10), { x, y: 0.225, z });
+    light.cylinder(x, z, 0.28, 0, 0.45);
+    light.sphere([x, (0.95 + top) / 2 + 0.1, z], 0.42, 0.55);
     for (const lean of [-0.08, 0.1]) {
       kit.add(new THREE.CylinderGeometry(0.012, 0.02, top - 0.4, 6), M.bark, at(x + lean * 2, 0.4 + (top - 0.4) / 2, z, 0, 0, lean));
     }
@@ -373,7 +408,92 @@ function buildRoom(stage, physics, glowTex, animated) {
   }
   room.add(leaves);
 
+  // Bordet foran gæsten og diskettemaskinen (de bygges i desk.js).
+  const deskZ0 = DESK.z - DESK.depth / 2;
+  light.box([-DESK.width / 2, DESK_TOP - 0.04, deskZ0], [DESK.width / 2, DESK_TOP, DESK.z + DESK.depth / 2]);
+  light.box([-DESK.width / 2, 0, deskZ0], [DESK.width / 2, DESK_TOP - 0.04, deskZ0 + 0.03]);
+  light.box([PRINTER.x - 0.14, DESK_TOP, PRINTER.z - 0.13], [PRINTER.x + 0.14, DESK_TOP + 0.2, PRINTER.z + 0.13]);
+
   kit.build(room);
+  bakeRoom(light, { floorMat, rugMat, RUG, ceilingMat, frontWallMat, rightWallMat, rightLength, rightMid, leftWallMat });
+}
+
+const put = (p, x, y, z) => {
+  p[0] = x;
+  p[1] = y;
+  p[2] = z;
+};
+
+// Regner lyset ud på gulv, tæppe, loft og de tre vægge.
+function bakeRoom(light, m) {
+  const { minX, maxX, minZ, maxZ, height: H } = ROOM;
+  const width = maxX - minX;
+  const depth = maxZ - minZ;
+  const meetingBack = maxZ + MEETING_DEPTH;
+  const fullDepth = depth + MEETING_DEPTH;
+  // Mørkere tæt på en kant (hjørner, fodlister og loftskanter).
+  const edge = (d, strength = 0.4, reach = 0.25) => 1 - strength * Math.exp(-Math.max(d, 0) / reach);
+  const sideWalls = (x) => edge(x - minX) * edge(maxX - x);
+
+  m.floorMat.lightMap = light.bake({
+    width: 192,
+    height: 200,
+    normal: [0, 1, 0],
+    ambient: new THREE.Color(0.14, 0.135, 0.13),
+    point: (u, v, p) => put(p, minX + u * width, 0, minZ + (1 - v) * fullDepth),
+    ao: (x, y, z) => sideWalls(x) * edge(z - minZ) * edge(meetingBack - z) * edge(Math.abs(z - maxZ), 0.15),
+  });
+  // Tæppet bruger gulvets lightmap, flyttet og skaleret til tæppets egne uv'er.
+  const rugMap = m.floorMat.lightMap.clone();
+  rugMap.repeat.set(m.RUG.w / width, m.RUG.d / fullDepth);
+  rugMap.offset.set((m.RUG.x - m.RUG.w / 2 - minX) / width, 1 - (m.RUG.z + m.RUG.d / 2 - minZ) / fullDepth);
+  m.rugMat.lightMap = rugMap;
+
+  m.ceilingMat.lightMap = light.bake({
+    width: 128,
+    height: 128,
+    normal: [0, -1, 0],
+    ambient: new THREE.Color(0.38, 0.38, 0.39),
+    point: (u, v, p) => put(p, minX + u * width, H, minZ + v * fullDepth),
+    ao: (x, y, z) => sideWalls(x) * edge(z - minZ) * edge(meetingBack - z) * edge(Math.abs(z - maxZ), 0.2),
+  });
+
+  // Vinduesvæggenes uv'er er i meter (fra ExtrudeGeometry), så lightmappet strækkes over hele væggen.
+  const wallMap = (tex, length) => {
+    tex.repeat.set(1 / length, 1 / H);
+    tex.offset.set(0.5, 0);
+    return tex;
+  };
+  const wallAmbient = new THREE.Color(0.24, 0.235, 0.23);
+  const wallAO = (s, y, s0, s1) => edge(y, 0.35) * edge(H - y, 0.3) * edge(s - s0) * edge(s1 - s);
+
+  m.frontWallMat.lightMap = wallMap(light.bake({
+    width: 256,
+    height: 96,
+    normal: [0, 0, 1],
+    ambient: wallAmbient,
+    point: (u, v, p) => put(p, (u - 0.5) * width, v * H, minZ),
+    ao: (x, y) => wallAO(x, y, minX, maxX),
+  }), width);
+
+  m.rightWallMat.lightMap = wallMap(light.bake({
+    width: 256,
+    height: 96,
+    normal: [-1, 0, 0],
+    ambient: wallAmbient,
+    point: (u, v, p) => put(p, maxX, v * H, m.rightMid + (u - 0.5) * m.rightLength),
+    ao: (x, y, z) => wallAO(z, y, minZ, meetingBack) * edge(Math.abs(z - maxZ), 0.2),
+  }), m.rightLength);
+
+  // Den spartlede væg er et almindeligt plan: u går fra glasvæggen (u = 0) mod vinduerne.
+  m.leftWallMat.lightMap = light.bake({
+    width: 192,
+    height: 80,
+    normal: [1, 0, 0],
+    ambient: wallAmbient,
+    point: (u, v, p) => put(p, minX, v * H, maxZ - u * depth),
+    ao: (x, y, z) => wallAO(z, y, minZ, maxZ),
+  });
 }
 
 // Uret viser den rigtige tid. Sekundviseren er i CO:PLAY-orange.

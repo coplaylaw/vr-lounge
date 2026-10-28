@@ -5,8 +5,8 @@ import { signTexture, beamMaterial } from './materials.js';
 import { CVI } from './palette.js';
 
 export const DESK_TOP = 0.72;
-const DESK = { width: 1.5, depth: 0.45, z: -0.62 };
-const PRINTER = new THREE.Vector3(0.5, DESK_TOP, -0.66);
+export const DESK = { width: 1.5, depth: 0.45, z: -0.62 };
+export const PRINTER = new THREE.Vector3(0.5, DESK_TOP, -0.66);
 export const PAD = new THREE.Vector3(-0.3, DESK_TOP, -0.6);
 
 // Bordet foran gæsten med diskettemaskinen (til højre) og printpladen (til venstre).
@@ -28,7 +28,8 @@ export class Desk {
       stage.add(edge);
     }
 
-    const lamp = new THREE.PointLight(0xe6f2ff, 2.5, 3);
+    // Spottet over bordet, så tingene på det får lidt ekstra lys.
+    const lamp = new THREE.PointLight(0xffeedb, 1.4, 3);
     lamp.position.set(0, 1.9, -0.6);
     stage.add(lamp);
 

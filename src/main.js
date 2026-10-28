@@ -13,10 +13,11 @@ import { glowTexture } from './materials.js';
 import { LanguageButtons } from './language.js';
 import {
   SPEAKER, LANGUAGE_PROMPT, setLanguage, SIGN,
-  INTRO, HIGH_FIVE, HIGH_FIVE_DONE, DISK_HINT, NEXT_DISK, TOPICS, HIT_LINES, HINTS, OUTRO,
+  INTRO, HIGH_FIVE, HIGH_FIVE_DONE, DISK_HINT, NEXT_DISK, TOPICS, HIT_LINES, HINTS, OUTRO, VOICE_FILES,
 } from './content.js';
 
 const LINE_PAUSE = 3; // sekunder mellem robottens linjer
+const VOICE_PAUSE = 0.8; // kortere pause, når robotten har sagt linjen højt
 const IDLE_HINT_AFTER = 30;
 const HIGH_FIVE_TIMEOUT = 14;
 const NEXT_DISK_AFTER = 12; // sekunder efter en diskette er sat i
@@ -59,7 +60,7 @@ const targets = new Targets(stage);
 const confetti = new Confetti(stage);
 const butterflies = new Butterflies(stage);
 const languageButtons = new LanguageButtons(stage);
-const sound = new Sound(stage);
+const sound = new Sound(stage, VOICE_FILES);
 const clock = new THREE.Clock();
 const now = () => clock.elapsedTime;
 
@@ -195,8 +196,10 @@ const story = {
     activeDisk = null;
     inserting = null;
     robot.reset();
+    sound.stopSpeaking();
 
     Object.assign(this, {
+      speakingUntil: 0,
       phase: 'language', queue: [], idle: 0, hint: 0, hits: 0, phaseTime: 0,
       nextDisk: 0, nextDiskAt: Infinity, disksGiven: 0, topicsSeen: new Set(), outroShown: false,
     });
@@ -226,14 +229,28 @@ const story = {
 
   show(line) {
     robot.panel.say(line);
+    this.voiced = Boolean(line.voice);
     sound.play('ui/panel-open', { at: robot.panel.mesh.position, volume: 0.5 });
-    sound.play('robot/talk-blip', { at: robot.headPosition(tmp), volume: 0.6, delay: 0.1 });
+    if (line.voice) {
+      // Historien venter, til robotten har talt færdig (højst 30 sekunder, hvis lyden aldrig slutter).
+      this.speakingUntil = now() + 30;
+      sound.speak(line.voice, { at: robot.headPosition(tmp), onEnd: () => (this.speakingUntil = now()) });
+    } else {
+      sound.stopSpeaking();
+      this.speakingUntil = 0;
+      sound.play('robot/talk-blip', { at: robot.headPosition(tmp), volume: 0.6, delay: 0.1 });
+    }
     if (HINTS.includes(line)) sound.play('ui/hint', { volume: 0.6 });
     if (line === OUTRO) sound.play('ui/outro', { volume: 0.7, delay: 0.3 });
   },
 
   get quiet() {
-    return !robot.panel.isTyping && this.queue.length === 0;
+    return !robot.panel.isTyping && this.queue.length === 0 && now() >= this.speakingUntil;
+  },
+
+  // Hvornår robotten sidst blev færdig med at vise og sige noget.
+  get doneTalkingAt() {
+    return Math.max(robot.panel.finishedAt, this.speakingUntil);
   },
 
   highFive(touched) {
@@ -259,15 +276,16 @@ const story = {
     if (item?.data.ignoreRobotUntil > now()) return;
     if (!robot.hit(now())) return;
     sound.play('robot/hit', { at: robot.headPosition(tmp) });
-    if (this.phase === 'play' && this.quiet && now() - robot.panel.finishedAt > 4) {
+    if (this.phase === 'play' && this.quiet && now() - this.doneTalkingAt > 4) {
       this.say(HIT_LINES[this.hits++ % HIT_LINES.length]);
     }
   },
 
   update(time, dt) {
     const panel = robot.panel;
-    const since = time - panel.finishedAt;
-    if (!panel.isTyping && this.queue.length && since > LINE_PAUSE) this.show(this.queue.shift());
+    const since = time - this.doneTalkingAt;
+    const pause = this.voiced ? VOICE_PAUSE : LINE_PAUSE;
+    if (!panel.isTyping && this.queue.length && since > pause) this.show(this.queue.shift());
     this.phaseTime += dt;
 
     if (this.phase === 'language') {

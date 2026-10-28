@@ -51,6 +51,16 @@ adb -s <serienummer> shell am start -a android.intent.action.VIEW -d http://loca
 - Rummet og byen: [src/world.js](src/world.js), teksturer: [src/materials.js](src/materials.js)
 - CVI-farverne: [src/palette.js](src/palette.js). Brug dem herfra i stedet for at skrive hex-koder. Logoet ligger i [assets/coplay-logo.png](assets/coplay-logo.png).
 
+## Musik og lydeffekter
+
+Musikken og lydeffekterne ligger i `assets/audio` og er genereret med ElevenLabs. Beskrivelsen af hver lyd står i [tools/sounds.json](tools/sounds.json). Ret en beskrivelse, og lav lyden igen med:
+
+```bash
+ELEVENLABS_API_KEY=... python3 tools/generate_audio.py --force <del af filnavn>
+```
+
+Uden `--force` laves kun de filer, der mangler.
+
 ## Opførsel
 
 - Velkomst, high five (springes over efter 14 sekunder), derefter én diskette ad gangen. Har gæsten prøvet alle fire, kommer en afslutning, og disketterne fortsætter i ring.

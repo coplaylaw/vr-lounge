@@ -34,6 +34,13 @@ scene.fog = new THREE.FogExp2(SKY_HORIZON, 0.0035);
 
 // Siddende øjenhøjde til desktop-forhåndsvisningen. I VR styrer headsettet kameraet.
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.03, 2000);
+// Bredere synsfelt på en stående telefon, så man ser mere end bare robotten.
+const fitCamera = () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.fov = camera.aspect < 1 ? 95 : 70;
+  camera.updateProjectionMatrix();
+};
+fitCamera();
 camera.position.set(0, 1.2, 0);
 
 // Alt indhold ligger i "stage", som flyttes hen til gæsten, når VR starter.
@@ -502,31 +509,39 @@ function alignStage() {
 // --- Startskærm og VR-session ---
 const overlay = document.getElementById('overlay');
 const startButton = document.getElementById('start');
+const flatButton = document.getElementById('flat');
 const hint = document.getElementById('hint');
+const PREVIEW_HINT = 'Træk for at kigge rundt og træk i tingene for at kaste dem. Med mus kan scrollhjulet flytte dem frem og tilbage.';
+// Telefoner siger også ja til VR (Cardboard), så kun Quest-browseren starter i VR som standard.
+const isQuest = /OculusBrowser|Quest/i.test(navigator.userAgent);
 let vrSupported = false;
+
+startButton.textContent = isQuest ? 'Start oplevelsen' : 'Se oplevelsen';
+startButton.addEventListener('click', () => (vrSupported && isQuest ? startVR() : startPreview()));
+flatButton.addEventListener('click', () => (isQuest ? startPreview() : startVR()));
 
 if (navigator.xr) {
   navigator.xr.isSessionSupported('immersive-vr').then((ok) => {
     vrSupported = ok;
-    if (!ok) showPreviewHint();
+    if (ok) flatButton.textContent = isQuest ? 'Se uden VR' : 'Start i VR';
+    flatButton.hidden = !ok;
+    if (!ok || !isQuest) hint.textContent = PREVIEW_HINT;
   });
 } else {
-  showPreviewHint();
+  hint.textContent = PREVIEW_HINT;
 }
 
-function showPreviewHint() {
-  startButton.textContent = 'Se forhåndsvisning';
-  hint.textContent = 'VR understøttes ikke i denne browser. Træk for at kigge rundt, træk i tingene for at kaste dem, og brug scrollhjulet til at flytte dem frem og tilbage.';
-}
-
-startButton.addEventListener('click', async () => {
+// Flad visning på skærmen, som på en pc.
+function startPreview() {
   sound.start();
   sound.play('ui/start', { volume: 0.7 });
-  if (!vrSupported) {
-    overlay.classList.add('hidden');
-    story.reset();
-    return;
-  }
+  overlay.classList.add('hidden');
+  story.reset();
+}
+
+async function startVR() {
+  sound.start();
+  sound.play('ui/start', { volume: 0.7 });
   try {
     const session = await navigator.xr.requestSession('immersive-vr', {
       optionalFeatures: ['local-floor', 'hand-tracking'],
@@ -535,7 +550,7 @@ startButton.addEventListener('click', async () => {
   } catch (err) {
     hint.textContent = `Kunne ikke starte VR: ${err.message}`;
   }
-});
+}
 
 let hiddenSince = null;
 renderer.xr.addEventListener('sessionstart', () => {
@@ -567,8 +582,7 @@ renderer.xr.addEventListener('sessionend', () => {
 });
 
 addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
+  fitCamera();
   renderer.setSize(innerWidth, innerHeight);
 });
 

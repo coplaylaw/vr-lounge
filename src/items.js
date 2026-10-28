@@ -166,6 +166,7 @@ export class Projectiles {
         const mesh = new THREE.Mesh(this.geometry, this.materials[this.list.length % this.materials.length]);
         const body = new CANNON.Body({ mass: 0.02, shape: this.shape, linearDamping: 0.01 });
         shot = { mesh, body, life: 0 };
+        body.addEventListener('collide', () => this.onImpact?.(shot));
         this.list.push(shot);
       }
     }
@@ -391,6 +392,7 @@ export class Butterflies {
     for (const b of this.list) {
       let perch = b.perch >= 0 ? perches.find((p) => p.id === b.perch) : null;
       if (b.state !== 'fly' && (!perch || perch.speed > 0.35)) {
+        if (b.state === 'perched') this.onTakeoff?.(b.group.position);
         b.state = 'fly';
         b.perch = -1;
         b.velocity.set((Math.random() - 0.5) * 0.4, 0.6, (Math.random() - 0.5) * 0.4);
@@ -417,7 +419,10 @@ export class Butterflies {
       } else {
         if (b.state === 'landing') {
           b.target.copy(perch.point).add(b.offset);
-          if (b.group.position.distanceTo(b.target) < 0.015) b.state = 'perched';
+          if (b.group.position.distanceTo(b.target) < 0.015) {
+            b.state = 'perched';
+            this.onLand?.(b.group.position);
+          }
         } else if (time > b.nextTarget) {
           b.nextTarget = time + 1 + Math.random() * 2;
           b.target.set(

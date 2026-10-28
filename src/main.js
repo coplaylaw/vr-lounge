@@ -49,7 +49,7 @@ const projectiles = new Projectiles(stage, physics);
 const targets = new Targets(stage);
 const confetti = new Confetti(stage);
 const butterflies = new Butterflies(stage);
-const sound = new Sound();
+const sound = new Sound(stage);
 const clock = new THREE.Clock();
 const now = () => clock.elapsedTime;
 
@@ -79,7 +79,7 @@ function dispenseDisk(topicIndex) {
   disk.body.velocity.set(v.x, v.y, v.z);
   disk.body.angularVelocity.set(0, 2.5, 0);
   robot.express('happy', 1, now());
-  sound.tone(400, 800, 0.2, { type: 'triangle', volume: 0.08 });
+  sound.play('robot/disk-launch', { at: disk.mesh.position });
   activeDisk = disk;
 }
 
@@ -87,7 +87,7 @@ function startInsert(disk) {
   input.drop(disk);
   physics.freeze(disk);
   inserting = { disk, t: 0, from: disk.mesh.position.clone(), fromQ: disk.mesh.quaternion.clone() };
-  sound.insert();
+  sound.play('desk/disk-insert', { at: desk.slotFront });
 }
 
 const flat = new THREE.Quaternion();
@@ -117,6 +117,7 @@ function clearPrinted(kind) {
   printed = printed.filter((item) => {
     if (item.kind !== kind) return true;
     confetti.burst(item.mesh.position.clone(), 12, 0.8);
+    sound.play('desk/dematerialize', { at: item.mesh.position, volume: 0.7 });
     input.drop(item);
     physics.remove(item);
     return false;
@@ -128,13 +129,14 @@ function spawnOnPad(item, velocity) {
   item.mesh.scale.setScalar(0.001);
   item.body.velocity.set(velocity.x, velocity.y, velocity.z);
   printed.push(item);
+  sound.play('desk/materialize', { at: item.mesh.position, volume: 0.7 });
 }
 
 const padTop = () => PAD.clone().setY(DESK_TOP + 0.08);
 
 function printItem(kind) {
   desk.startPrint();
-  sound.printing();
+  sound.play('desk/print', { at: PAD, delay: 0.3 });
   later(1.0, () => {
     if (kind === 'blocks') {
       clearPrinted('block');
@@ -145,9 +147,10 @@ function printItem(kind) {
     } else if (kind === 'blaster') {
       clearPrinted('blaster');
       spawnOnPad(createBlaster(physics, padTop()), new THREE.Vector3(0, 0.6, 0));
-      targets.spawn();
+      spawnTargets();
     } else if (kind === 'butterflies') {
       butterflies.spawn(6, padTop());
+      sound.play('butterflies/spawn', { at: PAD });
     } else if (kind === 'coffee') {
       clearPrinted('coffee');
       spawnOnPad(createCoffee(physics, padTop(), glowTex), new THREE.Vector3(0, 0.5, 0));
@@ -188,13 +191,22 @@ const story = {
       nextDisk: 0, nextDiskAt: Infinity, disksGiven: 0, topicsSeen: new Set(), outroShown: false,
     });
     robot.wave(4, now());
+    sound.play('robot/wave', { at: robot.headPosition(tmp), delay: 0.4 });
     this.say(INTRO[0]);
     for (const line of INTRO.slice(1)) this.queue.push(line);
   },
 
   say(line) {
     this.queue = [];
+    this.show(line);
+  },
+
+  show(line) {
     robot.panel.say(line);
+    sound.play('ui/panel-open', { at: robot.panel.mesh.position, volume: 0.5 });
+    sound.play('robot/talk-blip', { at: robot.headPosition(tmp), volume: 0.6, delay: 0.1 });
+    if (HINTS.includes(line)) sound.play('ui/hint', { volume: 0.6 });
+    if (line === OUTRO) sound.play('ui/outro', { volume: 0.7, delay: 0.3 });
   },
 
   get quiet() {
@@ -205,8 +217,11 @@ const story = {
     robot.setHighFive(false);
     if (touched) {
       robot.express('love', 1.8, now());
-      sound.clap();
-      confetti.burst(robot.highFiveHand(new THREE.Vector3()), 30, 1.2);
+      const hand = robot.highFiveHand(new THREE.Vector3());
+      sound.play('robot/highfive', { at: hand });
+      sound.play('fx/confetti-burst', { at: hand, volume: 0.6 });
+      sound.play('robot/love', { at: robot.headPosition(tmp), delay: 0.5 });
+      confetti.burst(hand, 30, 1.2);
     }
     this.say(HIGH_FIVE_DONE);
     this.phase = 'play';
@@ -220,7 +235,7 @@ const story = {
   onHit(item) {
     if (item?.data.ignoreRobotUntil > now()) return;
     if (!robot.hit(now())) return;
-    sound.boing();
+    sound.play('robot/hit', { at: robot.headPosition(tmp) });
     if (this.phase === 'play' && this.quiet && now() - robot.panel.finishedAt > 4) {
       this.say(HIT_LINES[this.hits++ % HIT_LINES.length]);
     }
@@ -229,7 +244,7 @@ const story = {
   update(time, dt) {
     const panel = robot.panel;
     const since = time - panel.finishedAt;
-    if (!panel.isTyping && this.queue.length && since > LINE_PAUSE) panel.say(this.queue.shift());
+    if (!panel.isTyping && this.queue.length && since > LINE_PAUSE) this.show(this.queue.shift());
     this.phaseTime += dt;
 
     if (this.phase === 'intro') {
@@ -237,6 +252,7 @@ const story = {
         this.phase = 'highfive';
         this.phaseTime = 0;
         robot.setHighFive(true);
+        sound.play('robot/highfive-ready', { at: robot.headPosition(tmp) });
         this.say(HIGH_FIVE);
       }
       return;
@@ -289,12 +305,28 @@ function onDiskInserted(topic) {
   story.nextDiskAt = now() + NEXT_DISK_AFTER;
   story.idle = 0;
   robot.express('happy', 2, now());
+  sound.play('desk/disk-read', { at: desk.slotFront, volume: 0.8 });
+  sound.play('robot/happy', { at: robot.headPosition(tmp), delay: 0.8 });
   printItem(topic.item);
+}
+
+function spawnTargets() {
+  targets.spawn();
+  sound.play('blaster/target-spawn', { volume: 0.7 });
 }
 
 const input = new Input({
   renderer, scene, camera, stage, physics,
-  onGrab: () => story.onGrab(),
+  onGrab: (item) => {
+    story.onGrab();
+    sound.play('interact/grab', { at: item.mesh.position, volume: 0.6 });
+  },
+  onRelease: (item) => {
+    const fast = item.body.velocity.length() > 1.5;
+    sound.play(fast ? 'interact/throw' : 'interact/release', { at: item.mesh.position, volume: fast ? 0.8 : 0.4 });
+  },
+  onPull: (item) => sound.play('interact/pull', { at: item.mesh.position, volume: 0.8 }),
+  onPoint: (item) => sound.play('interact/pointer-hover', { at: item.mesh.position, volume: 0.3, gap: 0.15 }),
   // Desktop: klik på robottens hånd giver high five.
   onClick: (raycaster) => {
     if (story.phase !== 'highfive') return false;
@@ -304,6 +336,35 @@ const input = new Input({
   },
 });
 robot.onHit = (item) => story.onHit(item);
+
+// --- Lyde fra fysikken og tingene ---
+
+// Lyden afhænger af tingen og det, den rammer. Uden et bedre match bruges væggens eller bordets lyd.
+const IMPACTS = {
+  disk: { table: 'impact/disk-table', floor: 'impact/disk-floor' },
+  block: { table: 'impact/block-table', floor: 'impact/block-floor' },
+  blaster: { table: 'impact/blaster-table', floor: 'impact/blaster-floor' },
+  coffee: { table: 'impact/mug-table', floor: 'impact/mug-floor' },
+};
+const SURFACES = {
+  wall: 'impact/wall', window: 'impact/glass', glass: 'impact/glass', ceiling: 'impact/ceiling', item: 'impact/soft-thud',
+};
+physics.onImpact = (item, surface, speed, other) => {
+  if (speed < 0.35 || item.frozen) return;
+  const t = now();
+  if (t - (item.data.lastImpact ?? -1) < 0.12) return;
+  item.data.lastImpact = t;
+  if (other) other.data.lastImpact = t; // én lyd pr. sammenstød
+  if (surface === 'window' && item.mesh.position.y < 0.85) surface = 'wall'; // under vindueskarmen
+  let name = IMPACTS[item.kind]?.[surface] ?? SURFACES[surface] ?? IMPACTS[item.kind]?.table;
+  if (surface === 'item' && item.kind === 'block' && other.kind === 'block') name = 'impact/block-stack';
+  if (!name) return;
+  sound.play(name, { at: item.mesh.position, volume: Math.min(1, 0.15 + speed / 3), gap: 0.03 });
+  if (item.kind === 'coffee' && speed > 1) sound.play('coffee/slosh', { at: item.mesh.position, volume: 0.6, gap: 0.5 });
+};
+projectiles.onImpact = (shot) => sound.play('blaster/shot-impact', { at: shot.mesh.position, volume: 0.35, gap: 0.08 });
+butterflies.onLand = (pos) => sound.play('butterflies/land', { at: pos, volume: 0.7 });
+butterflies.onTakeoff = (pos) => sound.play('butterflies/takeoff', { at: pos, volume: 0.6 });
 
 // --- Det der sker hvert billede ---
 
@@ -335,7 +396,7 @@ function updatePlay(time, dt) {
         tmp.copy(BLASTER_MUZZLE).applyQuaternion(item.mesh.quaternion).add(item.mesh.position);
         tmpDir.set(0, 0, -1).applyQuaternion(item.mesh.quaternion).multiplyScalar(11).add(holder.velocity);
         projectiles.fire(tmp, tmpDir);
-        sound.pew();
+        sound.play('blaster/shot', { at: tmp, volume: 0.6 });
       }
     }
     // Slag mod robotten med noget i hånden.
@@ -360,19 +421,72 @@ function updatePlay(time, dt) {
   }
   for (const t of hits) {
     confetti.burst(t.group.position.clone(), 60, 2.2);
-    sound.pop();
+    sound.play('blaster/target-hit', { at: t.group.position });
     robot.express('happy', 1, time);
   }
   if (hits.length && targets.allDown) {
     robot.celebrate(time);
-    sound.clap();
-    later(3, () => targets.spawn());
+    sound.play('blaster/all-targets');
+    sound.play('robot/celebrate', { at: robot.headPosition(tmp), delay: 0.6 });
+    later(3, spawnTargets);
   }
   targets.update(time, dt, viewerLocal);
 
   for (const item of printed) if (item.kind === 'coffee') updateCoffee(item, time);
   butterflies.update(time, dt, input.perches);
   confetti.update(dt);
+  updateSounds(time, dt, diskNear);
+}
+
+// Lyde, der følger med tingene: robottens summen, skydeskiver, sommerfugle, kaffen og toget udenfor.
+const soundState = { yaw: 0, servoAt: 0, trainDist: Infinity, trainCloser: false, trainAt: -Infinity };
+const center = new THREE.Vector3();
+function updateSounds(time, dt, diskNear) {
+  sound.steady('robot/hover-loop', 0.3, robot.headPosition(headPos));
+  sound.steady('desk/disk-near', diskNear * 0.6, desk.slotFront);
+
+  // Servoen høres, når robotten drejer hovedet hurtigt.
+  const turn = Math.abs(robot.yaw - soundState.yaw) / Math.max(dt, 1e-3);
+  soundState.yaw = robot.yaw;
+  if (turn > 1.2 && time > soundState.servoAt) {
+    soundState.servoAt = time + 1.5;
+    sound.play('robot/servo', { at: headPos, volume: 0.35 });
+  }
+
+  const alive = targets.list.filter((t) => t.alive);
+  center.set(0, 0, 0);
+  for (const t of alive) center.add(t.group.position);
+  sound.steady('blaster/target-hum', alive.length ? 0.2 : 0, alive.length ? center.divideScalar(alive.length) : null);
+
+  const flying = butterflies.list.filter((b) => b.state !== 'perched');
+  center.set(0, 0, 0);
+  for (const b of flying) center.add(b.group.position);
+  sound.steady('butterflies/flutter-loop', flying.length ? 0.35 : 0, flying.length ? center.divideScalar(flying.length) : null);
+
+  const coffee = printed.find((item) => item.kind === 'coffee');
+  sound.steady('coffee/steam-loop', coffee ? 0.25 : 0, coffee?.mesh.position);
+  if (coffee?.heldBy) {
+    if (coffee.heldBy.velocity.length() > 0.9) sound.play('coffee/slosh', { at: coffee.mesh.position, volume: 0.4, gap: 0.8 });
+    if (coffee.mesh.position.distanceTo(viewerLocal) < 0.2) sound.play('coffee/sip', { at: coffee.mesh.position, gap: 6 });
+  }
+
+  // Toget: lyden starter, når den nærmeste vogn er tættest på tårnet.
+  let dist = Infinity;
+  let nearest = null;
+  for (const car of world.trainCars) {
+    const d = car.position.distanceTo(viewerLocal);
+    if (d < dist) {
+      dist = d;
+      nearest = car;
+    }
+  }
+  const closer = dist < soundState.trainDist;
+  if (soundState.trainCloser && !closer && dist < 55 && time - soundState.trainAt > 20) {
+    soundState.trainAt = time;
+    sound.play('ambience/monorail-pass', { at: nearest.position, ref: 25, volume: 0.8 });
+  }
+  soundState.trainCloser = closer;
+  soundState.trainDist = dist;
 }
 
 // Drej og flyt scenen, så robotten står foran gæsten uanset hvor headsettet blev startet.
@@ -407,6 +521,7 @@ function showPreviewHint() {
 
 startButton.addEventListener('click', async () => {
   sound.start();
+  sound.play('ui/start', { volume: 0.7 });
   if (!vrSupported) {
     overlay.classList.add('hidden');
     story.reset();
@@ -434,6 +549,7 @@ renderer.xr.addEventListener('sessionstart', () => {
       return;
     }
     if (hiddenSince && performance.now() - hiddenSince > RESET_AFTER_HIDDEN * 1000) {
+      sound.play('ui/reset', { volume: 0.6 });
       story.reset();
       alignFrames = 0;
     }
@@ -487,11 +603,12 @@ function simulate(time, dt) {
   robot.update(time, dt, viewerLocal);
   updatePlay(time, dt);
   story.update(time, dt);
+  sound.update(viewer);
 }
 
 // Til fejlfinding i browserens konsol. advance(sek) spoler tiden frem uden at tegne.
 window.lounge = {
-  story, physics, input, robot, targets, butterflies, desk, printItem, dispenseDisk, startInsert, renderer,
+  story, physics, input, robot, targets, butterflies, desk, printItem, dispenseDisk, startInsert, renderer, sound,
   advance(seconds) {
     for (let t = 0; t < seconds; t += 1 / 60) {
       clock.elapsedTime += 1 / 60;

@@ -69,10 +69,11 @@ export function buildWorld(stage, physics) {
 
   physics.addRoom(ROOM);
   buildRoom(stage, physics, glowTex, animated);
-  buildCity(stage, animated, holoMaterials);
+  const trainCars = buildCity(stage, animated, holoMaterials);
   buildSky(stage);
 
   return {
+    trainCars, // svævetogets vogne, til lyden når toget kører forbi
     update(time, dt) {
       for (const m of holoMaterials) m.uniforms.uTime.value = time;
       for (const fn of animated) fn(time, dt);
@@ -271,7 +272,7 @@ function buildRoom(stage, physics, glowTex, animated) {
     kit.add(new THREE.CylinderGeometry(0.34, 0.34, 0.08, 28), M.trim, at(x, 0.04, z));
     kit.add(capital, M.trim, at(x, H - 0.42, z));
     kit.add(new THREE.TorusGeometry(0.47, 0.06, 8, 32), M.trim, at(x, H - 0.24, z, 0, Math.PI / 2));
-    physics.addStatic(new CANNON.Cylinder(0.32, 0.32, H, 12), { x, y: H / 2, z });
+    physics.addStatic(new CANNON.Cylinder(0.32, 0.32, H, 12), { x, y: H / 2, z }, null, 'wall');
     light.cylinder(x, z, 0.3, 0, H);
     light.cylinder(x, z, 0.5, H - 0.3, H);
   }
@@ -644,7 +645,7 @@ function buildCity(stage, animated, holoMaterials) {
   });
 
   buildLandmark(stage, winTex);
-  buildMonorail(stage, animated);
+  const trainCars = buildMonorail(stage, animated);
   buildDrones(stage, animated, holoMaterials);
 
   const ground = new THREE.Mesh(
@@ -654,6 +655,7 @@ function buildCity(stage, animated, holoMaterials) {
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = GROUND;
   stage.add(ground);
+  return trainCars;
 }
 
 // Det kugleformede tårn fra konceptbilledet, langt ude i byen.
@@ -745,6 +747,7 @@ function buildMonorail(stage, animated) {
       car.lookAt(tmp);
     });
   });
+  return cars;
 }
 
 // Svævende kugler med lyskegler, som på billedet.

@@ -62,6 +62,8 @@ ELEVENLABS_API_KEY=... python3 tools/generate_audio.py --force <del af filnavn>
 
 Uden `--force` laves kun de filer, der mangler.
 
+Lydene afspilles af [src/audio.js](src/audio.js) med rumlig lyd, så de kommer fra det sted i rummet, hvor det sker. Hvilken lyd der hører til hvilken hændelse, står i [src/main.js](src/main.js). Filer, der ender på `-1`, `-2` osv., er varianter, og der vælges en tilfældig af dem hver gang.
+
 ## Opførsel
 
 - Velkomst, high five (springes over efter 14 sekunder), derefter én diskette ad gangen. Har gæsten prøvet alle fire, kommer en afslutning, og disketterne fortsætter i ring.

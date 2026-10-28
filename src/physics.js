@@ -17,10 +17,13 @@ export class Physics {
     world.defaultContactMaterial.friction = 0.5;
     world.defaultContactMaterial.restitution = 0.3;
     this.items = new Set();
+    this.onImpact = null; // (item, surface, speed, other) når en ting rammer noget
   }
 
-  addStatic(shape, position, quaternion) {
+  // surface bruges til at vælge lyden, når noget rammer: table, floor, ceiling, wall, window.
+  addStatic(shape, position, quaternion, surface = 'table') {
     const body = new CANNON.Body({ mass: 0, type: CANNON.Body.STATIC });
+    body.userData = { surface };
     body.addShape(shape);
     body.position.set(position.x, position.y, position.z);
     if (quaternion) body.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
@@ -31,19 +34,20 @@ export class Physics {
   // Gulv, loft og de fire vægge (også vinduerne, så intet ryger ud).
   addRoom({ minX, maxX, minZ, maxZ, height }) {
     const flat = new CANNON.Quaternion().setFromEuler(-Math.PI / 2, 0, 0);
-    this.addStatic(new CANNON.Plane(), { x: 0, y: 0, z: 0 }, flat);
+    this.addStatic(new CANNON.Plane(), { x: 0, y: 0, z: 0 }, flat, 'floor');
     const down = new CANNON.Quaternion().setFromEuler(Math.PI / 2, 0, 0);
-    this.addStatic(new CANNON.Plane(), { x: 0, y: height, z: 0 }, down);
+    this.addStatic(new CANNON.Plane(), { x: 0, y: height, z: 0 }, down, 'ceiling');
     const t = 0.25;
     const w = (maxX - minX) / 2 + t * 2;
     const d = (maxZ - minZ) / 2 + t * 2;
     const cx = (minX + maxX) / 2;
     const cz = (minZ + maxZ) / 2;
     const y = height / 2;
-    this.addStatic(new CANNON.Box(new CANNON.Vec3(w, y, t)), { x: cx, y, z: minZ - t });
-    this.addStatic(new CANNON.Box(new CANNON.Vec3(w, y, t)), { x: cx, y, z: maxZ + t });
-    this.addStatic(new CANNON.Box(new CANNON.Vec3(t, y, d)), { x: minX - t, y, z: cz });
-    this.addStatic(new CANNON.Box(new CANNON.Vec3(t, y, d)), { x: maxX + t, y, z: cz });
+    // Vinduer foran og til højre, glasvæg bagved og den spartlede væg til venstre.
+    this.addStatic(new CANNON.Box(new CANNON.Vec3(w, y, t)), { x: cx, y, z: minZ - t }, null, 'window');
+    this.addStatic(new CANNON.Box(new CANNON.Vec3(w, y, t)), { x: cx, y, z: maxZ + t }, null, 'glass');
+    this.addStatic(new CANNON.Box(new CANNON.Vec3(t, y, d)), { x: minX - t, y, z: cz }, null, 'wall');
+    this.addStatic(new CANNON.Box(new CANNON.Vec3(t, y, d)), { x: maxX + t, y, z: cz }, null, 'window');
   }
 
   // Fast kasse til møbler: størrelse og midtpunkt i meter, drejet om y.
@@ -81,6 +85,12 @@ export class Physics {
       heldBy: null, frozen: false, highlight: false, appear: 1, data: {},
     };
     body.userData = { item };
+    body.addEventListener('collide', (e) => {
+      const speed = Math.abs(e.contact.getImpactVelocityAlongNormal());
+      const other = e.body.userData?.item;
+      const surface = other ? 'item' : e.body.userData?.surface;
+      if (surface) this.onImpact?.(item, surface, speed, other);
+    });
     this.items.add(item);
     return item;
   }

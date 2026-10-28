@@ -1,84 +1,179 @@
-// Diskret baggrundssummen og små lyde ved berøring. Startes fra et klik (browserkrav).
+import * as THREE from 'three';
+
+// Musik og lydeffekter fra assets/audio (genereret med ElevenLabs, se tools/sounds.json).
+// Lydene hentes, så snart siden åbner, men kan først høres efter et klik (browserkrav).
+// Positioner angives i stage-koordinater og placeres rumligt i forhold til gæstens hoved.
+const ROOT = 'assets/audio/';
+const MUSIC_VOLUME = 0.32;
+
+const _pos = new THREE.Vector3();
+const _quat = new THREE.Quaternion();
+const _scale = new THREE.Vector3();
+const _fwd = new THREE.Vector3();
+const _up = new THREE.Vector3();
+
 export class Sound {
-  start() {
-    if (this.ctx) {
-      this.ctx.resume();
-      return;
-    }
+  constructor(stage) {
+    this.stage = stage;
+    this.buffers = new Map(); // 'robot/hit-1' -> AudioBuffer
+    this.variants = new Map(); // 'robot/hit' -> ['robot/hit-1', 'robot/hit-2', ...]
+    this.loops = [];
+    this.last = new Map(); // seneste afspilning pr. lyd, så den samme lyd ikke stables
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
     const ctx = (this.ctx = new AudioContext());
     this.master = ctx.createGain();
-    this.master.gain.value = 0.6;
     this.master.connect(ctx.destination);
+    this.music = ctx.createGain();
+    this.music.gain.value = MUSIC_VOLUME;
+    this.music.connect(this.master);
+    this.sfx = ctx.createGain();
+    this.sfx.connect(this.master);
+    this.ready = this.load();
+  }
 
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 320;
-    const pad = ctx.createGain();
-    pad.gain.value = 0.05;
-    filter.connect(pad).connect(this.master);
-    for (const [freq, detune] of [[55, 0], [82.4, 4], [110, -5]]) {
-      const osc = ctx.createOscillator();
-      osc.type = 'sawtooth';
-      osc.frequency.value = freq;
-      osc.detune.value = detune;
-      osc.connect(filter);
-      osc.start();
+  async load() {
+    const spec = await (await fetch('tools/sounds.json')).json();
+    const names = [...spec.music, ...spec.sfx].map((e) => e.file.replace(/\.mp3$/, ''));
+    for (const name of names) {
+      const base = name.replace(/-\d+$/, '');
+      if (base !== name) this.variants.set(base, [...(this.variants.get(base) ?? []), name]);
     }
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    lfo.frequency.value = 0.07;
-    lfoGain.gain.value = 140;
-    lfo.connect(lfoGain).connect(filter.frequency);
-    lfo.start();
+    await Promise.all(names.map(async (name) => {
+      try {
+        const data = await (await fetch(`${ROOT}${name}.mp3`)).arrayBuffer();
+        this.buffers.set(name, await this.ctx.decodeAudioData(data));
+      } catch (err) {
+        console.warn(`Lyd mangler: ${name}`, err);
+      }
+    }));
   }
 
-  // Kort tone, der glider fra en frekvens til en anden.
-  tone(from, to, duration, { type = 'sine', volume = 0.15, delay = 0 } = {}) {
-    const ctx = this.ctx;
-    if (!ctx) return;
-    const t = ctx.currentTime + delay;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(from, t);
-    osc.frequency.exponentialRampToValueAtTime(to, t + duration * 0.6);
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(volume, t + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
-    osc.connect(gain).connect(this.master);
-    osc.start(t);
-    osc.stop(t + duration + 0.05);
+  // Kaldes fra startknappen. Musik og baggrundslyde starter, når filerne er hentet.
+  start() {
+    if (!this.ctx) return;
+    this.ctx.resume();
+    if (this.started) return;
+    this.started = true;
+    this.ready.then(() => {
+      this.loop('music/lounge-theme', { volume: 1, bus: this.music });
+      this.loop('ambience/room-tone', { volume: 0.9 });
+      this.loop('ambience/neon-buzz', { volume: 0.12, at: new THREE.Vector3(-4.5, 2.15, -1.0) });
+      this.loop('ambience/clock-tick', { volume: 0.35, at: new THREE.Vector3(4.5, 2.0, -1.5) });
+      this.loop('ambience/drone-hum', { volume: 0.12 });
+    });
   }
 
-  blip(pitch = 1) {
-    this.tone(660 * pitch, 1320 * pitch, 0.35);
+  // Lyden selv eller en tilfældig af dens varianter (robot/hit -> robot/hit-1..3).
+  pick(name) {
+    const list = this.variants.get(name);
+    return list ? list[Math.floor(Math.random() * list.length)] : name;
   }
 
-  pew() {
-    this.tone(1400, 300, 0.18, { type: 'triangle', volume: 0.08 });
+  // Et lydobjekt i rummet, eller direkte i ørerne uden position.
+  // ref er afstanden i meter, hvor lyden har fuld styrke.
+  output(at, bus = this.sfx, ref = 0.6) {
+    if (!at) return bus;
+    const panner = this.ctx.createPanner();
+    panner.panningModel = 'HRTF';
+    panner.distanceModel = 'inverse';
+    panner.refDistance = ref;
+    panner.rolloffFactor = 1;
+    this.place(panner, at);
+    panner.connect(bus);
+    return panner;
   }
 
-  pop() {
-    this.tone(500, 1800, 0.12, { type: 'square', volume: 0.06 });
-    this.tone(900, 2600, 0.25, { volume: 0.1, delay: 0.05 });
+  place(panner, at) {
+    _pos.copy(at);
+    this.stage.localToWorld(_pos);
+    const t = this.ctx.currentTime;
+    if (panner.positionX) {
+      panner.positionX.setValueAtTime(_pos.x, t);
+      panner.positionY.setValueAtTime(_pos.y, t);
+      panner.positionZ.setValueAtTime(_pos.z, t);
+    } else {
+      panner.setPosition(_pos.x, _pos.y, _pos.z);
+    }
   }
 
-  boing() {
-    this.tone(320, 110, 0.5, { type: 'triangle', volume: 0.18 });
+  // Engangslyd. volume 0..1, rate er afspilningshastigheden, gap er mindste tid mellem to af samme lyd.
+  play(name, { at = null, volume = 1, rate = 1, vary = 0.06, delay = 0, gap = 0.05, ref } = {}) {
+    if (!this.started) return;
+    const t = this.ctx.currentTime;
+    if (t - (this.last.get(name) ?? -1) < gap) return;
+    const buffer = this.buffers.get(this.pick(name));
+    if (!buffer) return;
+    this.last.set(name, t);
+    const src = this.ctx.createBufferSource();
+    src.buffer = buffer;
+    src.playbackRate.value = rate * (1 + (Math.random() - 0.5) * 2 * vary);
+    const gain = this.ctx.createGain();
+    gain.gain.value = volume;
+    src.connect(gain).connect(this.output(at, this.sfx, ref));
+    src.start(t + delay);
   }
 
-  clap() {
-    this.tone(1800, 400, 0.08, { type: 'square', volume: 0.08 });
-    this.tone(880, 1760, 0.3, { volume: 0.12, delay: 0.06 });
+  // Lyd i ring. Returnerer et håndtag til at ændre styrke og position eller stoppe den.
+  loop(name, { at = null, volume = 1, bus = this.sfx } = {}) {
+    const buffer = this.buffers.get(name);
+    if (!this.ctx || !buffer) return null;
+    const src = this.ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    const gain = this.ctx.createGain();
+    gain.gain.value = volume;
+    const out = this.output(at, bus);
+    src.connect(gain).connect(out);
+    src.start();
+    const handle = {
+      volume: (v) => gain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.08),
+      move: (p) => out !== bus && this.place(out, p),
+      stop: () => {
+        gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
+        src.stop(this.ctx.currentTime + 0.5);
+        this.loops = this.loops.filter((l) => l !== handle);
+      },
+    };
+    this.loops.push(handle);
+    return handle;
   }
 
-  printing() {
-    [523, 659, 784, 1047].forEach((f, i) => this.tone(f, f, 0.16, { type: 'square', volume: 0.04, delay: i * 0.15 }));
+  // En loop, der kører, så længe der er brug for den: tænd med en styrke over 0 og en position.
+  // Startes først, når lyden er hentet og afspilningen er i gang.
+  steady(name, volume, at) {
+    this.steadyLoops ??= new Map();
+    let handle = this.steadyLoops.get(name);
+    if (!handle && volume > 0.001 && this.started && this.buffers.has(name)) {
+      handle = this.loop(name, { at, volume: 0 });
+      this.steadyLoops.set(name, handle);
+    }
+    if (!handle) return;
+    handle.volume(volume);
+    if (at) handle.move(at);
   }
 
-  insert() {
-    this.tone(200, 90, 0.25, { type: 'square', volume: 0.06 });
+  // Gæstens hoved er lytteren. Kaldes hvert billede med det kamera, der tegnes fra.
+  update(viewer) {
+    if (!this.ctx) return;
+    viewer.matrixWorld.decompose(_pos, _quat, _scale);
+    _fwd.set(0, 0, -1).applyQuaternion(_quat);
+    _up.set(0, 1, 0).applyQuaternion(_quat);
+    const l = this.ctx.listener;
+    const t = this.ctx.currentTime;
+    if (l.positionX) {
+      l.positionX.setValueAtTime(_pos.x, t);
+      l.positionY.setValueAtTime(_pos.y, t);
+      l.positionZ.setValueAtTime(_pos.z, t);
+      l.forwardX.setValueAtTime(_fwd.x, t);
+      l.forwardY.setValueAtTime(_fwd.y, t);
+      l.forwardZ.setValueAtTime(_fwd.z, t);
+      l.upX.setValueAtTime(_up.x, t);
+      l.upY.setValueAtTime(_up.y, t);
+      l.upZ.setValueAtTime(_up.z, t);
+    } else {
+      l.setPosition(_pos.x, _pos.y, _pos.z);
+      l.setOrientation(_fwd.x, _fwd.y, _fwd.z, _up.x, _up.y, _up.z);
+    }
   }
 }

@@ -34,6 +34,11 @@ export class Sound {
     this.sfx.connect(this.master);
     this.voice = ctx.createGain();
     this.voice.connect(this.master);
+    // Måler stemmens styrke, så robottens mund kan følge med (se voiceLevel).
+    this.voiceAnalyser = ctx.createAnalyser();
+    this.voiceAnalyser.fftSize = 512;
+    this.voice.connect(this.voiceAnalyser);
+    this.voiceSamples = new Float32Array(this.voiceAnalyser.fftSize);
     this.speech = null; // den replik, robotten siger lige nu
     this.ready = this.load();
   }
@@ -164,6 +169,15 @@ export class Sound {
       last.onended = () => this.finishSpeaking(speech);
       this.music.gain.setTargetAtTime(MUSIC_VOLUME * 0.45, this.ctx.currentTime, 0.15);
     });
+  }
+
+  // Stemmens styrke lige nu (RMS, ca. 0..0.3). 0, når robotten er stille.
+  voiceLevel() {
+    if (!this.voiceAnalyser || !this.speech) return 0;
+    this.voiceAnalyser.getFloatTimeDomainData(this.voiceSamples);
+    let sum = 0;
+    for (const v of this.voiceSamples) sum += v * v;
+    return Math.sqrt(sum / this.voiceSamples.length);
   }
 
   stopSpeaking() {

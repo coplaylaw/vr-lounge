@@ -1,7 +1,7 @@
 // Alle tekster i oplevelsen på dansk og engelsk. UDKAST: ret dem til, så de passer til CO:PLAY.
 // Gæsten vælger sprog først. setLanguage() skifter så alle de eksporterede tekster herunder.
 // voice er robottens indtalte replik i assets/audio/voice. En liste afspilles i rækkefølge,
-// og tal i listen er pauser i sekunder. Replikker uden voice vises kun i talebobblen.
+// og tal i listen er pauser i sekunder. Taleboblen er skjult, så replikker uden voice ses og høres ikke.
 
 import { CVI } from './palette.js';
 

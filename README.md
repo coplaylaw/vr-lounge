@@ -43,7 +43,7 @@ adb -s <serienummer> shell am start -a android.intent.action.VIEW -d http://loca
 ## Ret tekster og indhold
 
 - Alle tekster på dansk og engelsk: [src/content.js](src/content.js). Sprogknapperne: [src/language.js](src/language.js)
-- Robotten og talebobblen: [src/robot.js](src/robot.js)
+- Robotten: [src/robot.js](src/robot.js). Taleboblen er skjult. Robotten taler med indtalt stemme, og munden følger stemmens styrke.
 - Bordet, maskinen og printpladen: [src/desk.js](src/desk.js)
 - Disketter, klodser, kanon, kaffe, skydeskiver, konfetti og sommerfugle: [src/items.js](src/items.js)
 - Greb og kast: [src/input.js](src/input.js), fysik: [src/physics.js](src/physics.js)
@@ -51,7 +51,7 @@ adb -s <serienummer> shell am start -a android.intent.action.VIEW -d http://loca
 - Rummet og byen: [src/world.js](src/world.js), teksturer: [src/materials.js](src/materials.js)
 - Lyset: gulv, vægge og loft har bagt lys, som regnes ud ved start i [src/bake.js](src/bake.js). Lyskilderne (spots, gulvlampe, vinduer) og skyggekasterne sættes op i `buildRoom` i world.js, og styrken justeres i `bakeRoom`.
 - Lydniveauerne: `python3 tools/levels.py` måler alle lyde og skriver en forstærkning pr. lyd til `assets/audio/levels.json`. Kør det igen, når der kommer nye lyde, og justér målene i scriptet.
-- Kaffen: overfladen og udhældningen styres af `updateCoffee` og `CoffeeSpill` i [src/items.js](src/items.js). Rumskibet: `buildSpaceship` i world.js (`lounge.world.spaceship.fly()` sender det af sted med det samme).
+- Kaffen: overfladen og udhældningen styres af `updateCoffee` og `CoffeeSpill` i [src/items.js](src/items.js).
 - CVI-farverne: [src/palette.js](src/palette.js). Brug dem herfra i stedet for at skrive hex-koder. Logoet ligger i [assets/coplay-logo.png](assets/coplay-logo.png).
 
 ## Musik og lydeffekter

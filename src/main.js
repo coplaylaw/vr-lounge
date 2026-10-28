@@ -73,8 +73,6 @@ const coffeeSpill = new CoffeeSpill(stage, [{
 }]);
 const languageButtons = new LanguageButtons(stage);
 const sound = new Sound(stage, VOICE_FILES);
-// Rumskibet lyder som et dybere sus af toget.
-world.spaceship.onPass = (pos) => sound.play('ambience/monorail-pass', { at: pos, ref: 30, volume: 0.9, rate: 0.7 });
 const clock = new THREE.Clock();
 const now = () => clock.elapsedTime;
 
@@ -248,7 +246,6 @@ const story = {
   show(line) {
     robot.panel.say(line);
     this.voiced = Boolean(line.voice);
-    sound.play('ui/panel-open', { at: robot.panel.mesh.position, volume: 0.5 });
     if (line.voice) {
       // Historien venter, til robotten har talt færdig (højst 30 sekunder, hvis lyden aldrig slutter).
       this.speakingUntil = now() + 30;
@@ -685,6 +682,7 @@ function simulate(time, dt) {
   reveal.update(dt, viewerPos);
   input.update(time, dt);
   physics.step(dt);
+  robot.voiceLevel = sound.voiceLevel();
   robot.update(time, dt, viewerLocal);
   updatePlay(time, dt);
   story.update(time, dt);

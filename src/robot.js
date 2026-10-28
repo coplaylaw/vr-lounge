@@ -127,7 +127,10 @@ export class Robot {
     const p = new THREE.Vector3(0.62, 1.48, -1.2);
     this.panel.mesh.position.copy(p);
     this.panel.mesh.rotation.y = Math.atan2(-p.x, -p.z);
+    // Taleboblen vises ikke. Den bruges stadig til at time replikker uden indtalt stemme.
+    this.panel.mesh.visible = false;
     stage.add(this.panel.mesh);
+    this.voiceLevel = 0; // sættes udefra fra stemmens lydstyrke (Sound.voiceLevel)
 
     this.onHit = null;
     this.tmp = new THREE.Vector3();
@@ -250,7 +253,8 @@ export class Robot {
 
     if (time > this.nextBlink + 0.13) this.nextBlink = time + 2 + Math.random() * 3;
     const blinking = time > this.nextBlink && this.expression === 'idle';
-    const mouth = this.panel.isTyping ? (Math.sin(time * 18) > 0 ? 2 : 1) : 0;
+    // Munden følger stemmen: halvt åben ved svag lyd, helt åben ved kraftig.
+    const mouth = this.voiceLevel > 0.06 ? 2 : this.voiceLevel > 0.015 ? 1 : 0;
     const key = `${this.expression}|${blinking}|${mouth}`;
     if (key !== this.faceKey) {
       this.faceKey = key;

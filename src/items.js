@@ -48,7 +48,7 @@ export function createLetterBlock(physics, letter, index, position) {
   );
   mesh.position.copy(position);
   return physics.add(mesh, new CANNON.Box(new CANNON.Vec3(BLOCK / 2, BLOCK / 2, BLOCK / 2)), {
-    mass: 0.12, kind: 'block', radius: 0.05,
+    mass: 0.12, kind: 'block', radius: 0.05, material: physics.blockMaterial,
   });
 }
 
@@ -91,6 +91,10 @@ export function createBlaster(physics, position) {
   return item;
 }
 
+// Koppens mål (lokalt, bunden ved y = 0).
+const CUP = { inner: 0.034, floor: 0.008, rim: 0.09 };
+const COFFEE_COLOR = 0x3b2416;
+
 export function createCoffee(physics, position, glowTex) {
   const group = new THREE.Group();
   const cup = new THREE.Group();
@@ -106,14 +110,21 @@ export function createCoffee(physics, position, glowTex) {
   );
   band.position.y = 0.055;
   cup.add(band);
-  const coffee = new THREE.Mesh(new THREE.CircleGeometry(0.034, 24), new THREE.MeshLambertMaterial({ color: 0x3b2416 }));
-  coffee.rotation.x = -Math.PI / 2;
-  coffee.position.y = 0.075;
-  cup.add(coffee);
   const handle = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.006, 8, 16, Math.PI), white);
   handle.rotation.z = -Math.PI / 2;
   handle.position.set(0.039, 0.045, 0);
   cup.add(handle);
+
+  // Kaffens overflade holder sig vandret, uanset hvordan koppen vendes (se updateCoffee).
+  // Overfladen klippes ved koppens kant og bund, så den ikke stikker ud, når kaffen hældes.
+  const clip = [new THREE.Plane(), new THREE.Plane()];
+  const surface = new THREE.Mesh(
+    new THREE.CircleGeometry(1, 28).rotateX(-Math.PI / 2),
+    new THREE.MeshLambertMaterial({ color: COFFEE_COLOR, side: THREE.DoubleSide, clippingPlanes: clip }),
+  );
+  surface.matrixAutoUpdate = false;
+  surface.raycast = () => {};
+  cup.add(surface);
 
   const steam = [0, 1, 2].map(() => {
     const puff = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -128,19 +139,160 @@ export function createCoffee(physics, position, glowTex) {
   const item = physics.add(group, new CANNON.Cylinder(0.04, 0.034, 0.09, 12), {
     mass: 0.25, kind: 'coffee', radius: 0.06,
   });
-  item.data.steam = steam;
+  Object.assign(item.data, { steam, cup, surface, clip, fill: 0.7, pouring: 0 });
   return item;
 }
 
-const tmpUp = new THREE.Vector3();
-export function updateCoffee(item, time) {
-  const upright = tmpUp.copy(UP).applyQuaternion(item.mesh.quaternion).y > 0.8;
-  item.data.steam.forEach((puff, i) => {
+const _q = new THREE.Quaternion();
+const _up = new THREE.Vector3();
+const _lip = new THREE.Vector3();
+const _t = new THREE.Vector3();
+const _b = new THREE.Vector3();
+const _m = new THREE.Matrix4();
+const _v = new THREE.Vector3();
+
+// Væsken: overfladen er et vandret plan gennem koppens akse i fyldhøjden. Når planet når over
+// kanten på den lave side, løber kaffen ud. Returnerer, hvor meget der hældes (0..1).
+export function updateCoffee(item, time, dt, spill) {
+  const { cup, surface, steam, clip } = item.data;
+  cup.updateWorldMatrix(true, false);
+  // Verdens "op" set fra koppen.
+  _up.copy(UP).applyQuaternion(cup.getWorldQuaternion(_q).invert());
+  const tilt = Math.hypot(_up.x, _up.z);
+  const depth = CUP.rim - CUP.floor;
+  let level = CUP.floor + item.data.fill * depth;
+
+  // Hvor højt står kaffen ved den laveste del af kanten? Over kanten = den løber ud.
+  let pour = 0;
+  if (item.data.fill > 0) {
+    const rise = _up.y > 0.05 ? (CUP.inner * tilt) / _up.y : Infinity;
+    const over = level + rise - CUP.rim;
+    if (over > 0) {
+      pour = Math.min(1, over / 0.03 + (_up.y < 0.2 ? 1 : 0));
+      item.data.fill = Math.max(0, item.data.fill - pour * dt * 0.3);
+      level = CUP.floor + item.data.fill * depth;
+      if (spill) {
+        // Kaffen løber ud over den laveste del af kanten.
+        _lip.set(-_up.x, 0, -_up.z);
+        if (_lip.lengthSq() < 1e-6) _lip.set(1, 0, 0);
+        _lip.normalize().multiplyScalar(CUP.inner + 0.004).setY(CUP.rim);
+        cup.localToWorld(_lip);
+        spill.pour(_lip, item.body.velocity, pour * dt);
+      }
+    }
+  }
+  item.data.pouring = pour;
+
+  // Overfladen: normal = verdens op, strakt ud langs hældningen, så den dækker den skrå kop.
+  surface.visible = item.data.fill > 0.02 && _up.y > 0.15;
+  if (surface.visible) {
+    _t.set(-_up.x, 0, -_up.z);
+    if (_t.lengthSq() < 1e-8) _t.set(1, 0, 0);
+    _t.addScaledVector(_up, -_t.dot(_up)).normalize();
+    _b.crossVectors(_t, _up).normalize();
+    const r = CUP.inner - 0.001 + (level - CUP.floor) * 0.08;
+    _m.makeBasis(_t.multiplyScalar(r / _up.y), _v.copy(_up), _b.multiplyScalar(r));
+    _m.setPosition(0, level, 0);
+    surface.matrix.copy(_m);
+    // Klippeplanerne i verdenskoordinater: under kanten og over bunden.
+    const axis = _v.set(0, 1, 0).applyQuaternion(cup.getWorldQuaternion(_q));
+    clip[0].setFromNormalAndCoplanarPoint(_t.copy(axis).negate(), cup.localToWorld(_lip.set(0, CUP.rim, 0)));
+    clip[1].setFromNormalAndCoplanarPoint(axis, cup.localToWorld(_lip.set(0, CUP.floor, 0)));
+  }
+
+  const steaming = _up.y > 0.8 && item.data.fill > 0.1;
+  steam.forEach((puff, i) => {
     const t = (time * 0.35 + i / 3) % 1;
     puff.position.set(Math.sin(time * 2 + i * 2) * 0.008, 0.09 + t * 0.12, 0);
     puff.scale.setScalar(0.03 + t * 0.05);
-    puff.material.opacity = upright ? 0.35 * Math.sin(t * Math.PI) : 0;
+    puff.material.opacity = steaming ? 0.35 * Math.sin(t * Math.PI) : 0;
   });
+  return pour;
+}
+
+// Kaffe, der er hældt ud: dråber, der falder, og pytter, hvor de lander.
+const DROPS = 160;
+const PUDDLES = 24;
+
+export class CoffeeSpill {
+  // surfaces: [{ y, minX, maxX, minZ, maxZ }] vandrette flader dråberne kan lande på (gulvet tjekkes altid).
+  constructor(stage, surfaces = []) {
+    this.surfaces = surfaces;
+    const material = new THREE.MeshLambertMaterial({ color: COFFEE_COLOR });
+    this.drops = new THREE.InstancedMesh(new THREE.SphereGeometry(0.005, 6, 4), material, DROPS);
+    this.drops.frustumCulled = false;
+    this.drops.raycast = () => {};
+    stage.add(this.drops);
+    this.list = Array.from({ length: DROPS }, () => ({ life: 0, p: new THREE.Vector3(), v: new THREE.Vector3() }));
+    this.puddleMat = new THREE.MeshLambertMaterial({ color: 0x2e1b10, transparent: true, opacity: 0.9, depthWrite: false });
+    this.puddleGeo = new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2);
+    this.puddles = [];
+    this.stage = stage;
+    this.carry = 0;
+    this.matrix = new THREE.Matrix4();
+    this.clear();
+  }
+
+  // lip er i verdenskoordinater, velocity i scenens. amount: hvor meget der hældes i dette billede.
+  pour(lip, velocity, amount) {
+    this.carry += amount * 250;
+    while (this.carry >= 1) {
+      this.carry -= 1;
+      const d = this.list.find((x) => x.life <= 0);
+      if (!d) return;
+      d.life = 3;
+      this.stage.worldToLocal(d.p.copy(lip)).add(_v.set((Math.random() - 0.5) * 0.008, 0, (Math.random() - 0.5) * 0.008));
+      d.v.set(velocity.x, velocity.y, velocity.z).multiplyScalar(0.8);
+      d.v.x += (Math.random() - 0.5) * 0.08;
+      d.v.z += (Math.random() - 0.5) * 0.08;
+    }
+  }
+
+  land(p, y) {
+    const near = this.puddles.find((x) => Math.abs(x.position.y - y) < 0.01 && Math.hypot(x.position.x - p.x, x.position.z - p.z) < x.scale.x + 0.02);
+    if (near) {
+      // Pytten vokser med arealet af dråben.
+      near.scale.setScalar(Math.min(0.12, Math.sqrt(near.scale.x ** 2 + 0.00006)));
+      return;
+    }
+    let puddle = this.puddles.length >= PUDDLES ? this.puddles.shift() : null;
+    if (!puddle) puddle = new THREE.Mesh(this.puddleGeo, this.puddleMat);
+    puddle.raycast = () => {};
+    puddle.position.set(p.x, y + 0.002 + this.puddles.length * 0.0001, p.z);
+    puddle.scale.setScalar(0.012);
+    this.stage.add(puddle);
+    this.puddles.push(puddle);
+  }
+
+  update(dt) {
+    this.list.forEach((d, i) => {
+      if (d.life > 0) {
+        d.life -= dt;
+        d.v.y -= 9.82 * dt;
+        const prevY = d.p.y;
+        d.p.addScaledVector(d.v, dt);
+        let ground = 0;
+        for (const s of this.surfaces) {
+          if (d.p.x > s.minX && d.p.x < s.maxX && d.p.z > s.minZ && d.p.z < s.maxZ && prevY >= s.y) ground = Math.max(ground, s.y);
+        }
+        if (d.p.y <= ground) {
+          this.land(d.p, ground);
+          d.life = 0;
+        }
+      }
+      this.matrix.makeScale(d.life > 0 ? 1 : 0, d.life > 0 ? 1.6 : 0, d.life > 0 ? 1 : 0).setPosition(d.p);
+      this.drops.setMatrixAt(i, this.matrix);
+    });
+    this.drops.instanceMatrix.needsUpdate = true;
+  }
+
+  clear() {
+    for (const d of this.list) d.life = 0;
+    for (const p of this.puddles) p.removeFromParent();
+    this.puddles = [];
+    this.carry = 0;
+    this.update(0);
+  }
 }
 
 // --- Skud fra konfettikanonen ---

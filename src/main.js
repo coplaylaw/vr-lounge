@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import { buildWorld, SKY_HORIZON } from './world.js';
 import { Physics } from './physics.js';
 import { Robot } from './robot.js';
-import { Desk, DESK_TOP, PAD } from './desk.js';
+import { Desk, DESK, DESK_TOP, PAD } from './desk.js';
 import {
-  createDisk, createLetterBlock, createBlaster, createCoffee, updateCoffee, BLASTER_MUZZLE,
+  createDisk, createLetterBlock, createBlaster, createCoffee, updateCoffee, CoffeeSpill, BLASTER_MUZZLE,
   Projectiles, Targets, Confetti, Butterflies,
 } from './items.js';
 import {
@@ -16,12 +16,16 @@ import { Avatar } from './avatar.js';
 import { Input } from './input.js';
 import { Sound } from './audio.js';
 import { glowTexture } from './materials.js';
+import { LanguageButtons } from './language.js';
+import { Reveal } from './reveal.js';
 import {
-  SPEAKER, INTRO, HIGH_FIVE, HIGH_FIVE_DONE, DISK_HINT, NEXT_DISK, TOPICS, BONUS_TOPICS, BONUS, EVENTS,
-  HIT_LINES, HINTS, OUTRO,
+  SPEAKER, LANGUAGE_PROMPT, setLanguage, SIGN,
+  INTRO, HIGH_FIVE, HIGH_FIVE_DONE, DISK_HINT, NEXT_DISK, TOPICS, BONUS_TOPICS, BONUS, EVENTS,
+  HIT_LINES, HINTS, OUTRO, VOICE_FILES,
 } from './content.js';
 
 const LINE_PAUSE = 3; // sekunder mellem robottens linjer
+const VOICE_PAUSE = 0.8; // kortere pause, når robotten har sagt linjen højt
 const IDLE_HINT_AFTER = 30;
 const HIGH_FIVE_TIMEOUT = 14;
 const NEXT_DISK_AFTER = 12; // sekunder efter en diskette er sat i
@@ -31,6 +35,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.xr.enabled = true;
+renderer.localClippingEnabled = true; // kaffens overflade klippes ved koppens kant
 renderer.xr.setReferenceSpaceType('local-floor');
 renderer.xr.setFoveation(1);
 document.body.appendChild(renderer.domElement);
@@ -57,18 +62,30 @@ scene.add(stage);
 
 const glowTex = glowTexture();
 const physics = new Physics(stage, glowTex);
-const world = buildWorld(stage, physics);
-const desk = new Desk(stage, physics);
+// Rummet, bordet og byen ligger i worldRoot, så de kan "indlæses", når gæsten har valgt sprog.
+const worldRoot = new THREE.Group();
+stage.add(worldRoot);
+const world = buildWorld(worldRoot, physics);
+const desk = new Desk(worldRoot, physics);
+desk.beam.userData.noReveal = true; // styres af printeren selv
+const reveal = new Reveal(scene, worldRoot);
+// Skraldespanden bag gæsten hører til rummet og "indlæses" med det.
+const bin = new PaperBin(worldRoot, physics, glowTex);
+reveal.prepare();
 const robot = new Robot(stage, physics, SPEAKER, glowTex);
 const projectiles = new Projectiles(stage, physics);
 const targets = new Targets(stage);
 const confetti = new Confetti(stage);
 const butterflies = new Butterflies(stage);
-const sound = new Sound(stage);
+// Spildt kaffe lander på bordet foran gæsten eller på gulvet.
+const coffeeSpill = new CoffeeSpill(stage, [{
+  y: DESK_TOP, minX: -DESK.width / 2, maxX: DESK.width / 2, minZ: DESK.z - DESK.depth / 2, maxZ: DESK.z + DESK.depth / 2,
+}]);
+const languageButtons = new LanguageButtons(stage);
+const sound = new Sound(stage, VOICE_FILES);
 const avatar = new Avatar(scene);
 const photos = new Photos(physics);
 const stampMarks = new StampMarks(stage);
-const bin = new PaperBin(stage, physics, glowTex);
 const clock = new THREE.Clock();
 const now = () => clock.elapsedTime;
 
@@ -90,7 +107,8 @@ function renderView(target, viewCamera) {
 
 // --- Disketter og printer ---
 
-const ALL_TOPICS = [...TOPICS, ...BONUS_TOPICS];
+// Alle disketter på det valgte sprog.
+const allTopics = () => [...TOPICS, ...BONUS_TOPICS];
 let disksOut = []; // disketter robotten har givet gæsten, som ikke er sat i endnu
 let inserting = null;
 let printed = []; // ting fra printeren, der fjernes ved nyt print af samme slags
@@ -247,20 +265,40 @@ const story = {
     photos.clear();
     stampMarks.clear();
     bin.reset();
+    coffeeSpill.clear();
     timers = [];
     printed = [];
     disksOut = [];
     inserting = null;
     robot.reset();
+    sound.stopSpeaking();
     props.reset();
 
     Object.assign(this, {
-      phase: 'intro', queue: [], idle: 0, hint: 0, hits: 0, phaseTime: 0,
+      speakingUntil: 0,
+      phase: 'language', queue: [], idle: 0, hint: 0, hits: 0, phaseTime: 0,
       nextDisk: 0, nextDiskAt: Infinity, disksGiven: 0, topicsSeen: new Set(), bonusGiven: false, outroShown: false,
-      said: new Set(), fixing: null,
+      said: new Set(),
     });
+    // Hver ny gæst starter med at vælge sprog.
     robot.wave(4, now());
     sound.play('robot/wave', { at: robot.headPosition(tmp), delay: 0.4 });
+    languageButtons.show();
+    reveal.hide();
+    this.say(LANGUAGE_PROMPT);
+  },
+
+  chooseLanguage(id) {
+    setLanguage(id);
+    desk.setSign(SIGN);
+    languageButtons.hide();
+    reveal.start();
+    later(3, () => props.spawnHeadsets()); // når indlæsningen har nået bænken
+    sound.play('desk/print', { volume: 0.8 });
+    robot.express('happy', 1.2, now());
+    sound.play('robot/happy', { at: robot.headPosition(tmp) });
+    this.phase = 'intro';
+    this.phaseTime = 0;
     this.say(INTRO[0]);
     for (const line of INTRO.slice(1)) this.queue.push(line);
   },
@@ -272,14 +310,27 @@ const story = {
 
   show(line) {
     robot.panel.say(line);
-    sound.play('ui/panel-open', { at: robot.panel.mesh.position, volume: 0.5 });
-    sound.play('robot/talk-blip', { at: robot.headPosition(tmp), volume: 0.6, delay: 0.1 });
+    this.voiced = Boolean(line.voice);
+    if (line.voice) {
+      // Historien venter, til robotten har talt færdig (højst 30 sekunder, hvis lyden aldrig slutter).
+      this.speakingUntil = now() + 30;
+      sound.speak(line.voice, { at: robot.headPosition(tmp), onEnd: () => (this.speakingUntil = now()) });
+    } else {
+      sound.stopSpeaking();
+      this.speakingUntil = 0;
+      sound.play('robot/talk-blip', { at: robot.headPosition(tmp), volume: 0.6, delay: 0.1 });
+    }
     if (HINTS.includes(line)) sound.play('ui/hint', { volume: 0.6 });
     if (line === OUTRO) sound.play('ui/outro', { volume: 0.7, delay: 0.3 });
   },
 
   get quiet() {
-    return !robot.panel.isTyping && this.queue.length === 0;
+    return !robot.panel.isTyping && this.queue.length === 0 && now() >= this.speakingUntil;
+  },
+
+  // Hvornår robotten sidst blev færdig med at vise og sige noget.
+  get doneTalkingAt() {
+    return Math.max(robot.panel.finishedAt, this.speakingUntil);
   },
 
   // En replik fra EVENTS. once: kun første gang. Den venter, hvis robotten er i gang med at tale.
@@ -314,16 +365,25 @@ const story = {
     if (item?.data.ignoreRobotUntil > now()) return;
     if (!robot.hit(now())) return;
     sound.play('robot/hit', { at: robot.headPosition(tmp) });
-    if (this.phase === 'play' && this.quiet && now() - robot.panel.finishedAt > 4) {
+    if (this.phase === 'play' && this.quiet && now() - this.doneTalkingAt > 4) {
       this.say(HIT_LINES[this.hits++ % HIT_LINES.length]);
     }
   },
 
   update(time, dt) {
     const panel = robot.panel;
-    const since = time - panel.finishedAt;
-    if (!panel.isTyping && this.queue.length && since > LINE_PAUSE) this.show(this.queue.shift());
+    const since = time - this.doneTalkingAt;
+    const pause = this.voiced ? VOICE_PAUSE : LINE_PAUSE;
+    if (!panel.isTyping && this.queue.length && since > pause) this.show(this.queue.shift());
     this.phaseTime += dt;
+
+    if (this.phase === 'language') {
+      // I VR vælges sproget ved at røre en knap. På skærmen klikkes der (se onClick).
+      const points = input.xrActive ? input.perches.map((p) => p.point) : [];
+      const id = languageButtons.update(time, points);
+      if (id) this.chooseLanguage(id);
+      return;
+    }
 
     if (this.phase === 'intro') {
       if (this.quiet && since > 1.5) {
@@ -366,7 +426,7 @@ const story = {
         this.nextDisk = 0;
       } else {
         // Efter bonusrunden gives alle disketterne én ad gangen i ring.
-        const list = this.bonusGiven ? ALL_TOPICS : TOPICS;
+        const list = this.bonusGiven ? allTopics() : TOPICS;
         dispenseDisk(list[this.nextDisk % list.length]);
         this.queue.push(this.disksGiven === 0 ? DISK_HINT : NEXT_DISK);
         this.nextDisk = (this.nextDisk + 1) % list.length;
@@ -401,7 +461,7 @@ function onDiskInserted(topic) {
   story.topicsSeen.add(topic.label);
   story.say(topic);
   story.queue.push(topic.play);
-  if (!story.outroShown && story.topicsSeen.size === ALL_TOPICS.length) {
+  if (!story.outroShown && story.topicsSeen.size === allTopics().length) {
     story.outroShown = true;
     story.queue.push(OUTRO);
   }
@@ -437,8 +497,13 @@ const input = new Input({
   onUse: (item) => {
     if (item.kind === 'camera') takePhoto(item);
   },
-  // Desktop: klik på robottens hånd giver high five.
+  // Skærm: klik på en sprogknap eller på robottens hånd for high five.
   onClick: (raycaster) => {
+    if (story.phase === 'language') {
+      const id = languageButtons.pick(raycaster);
+      if (id) story.chooseLanguage(id);
+      return Boolean(id);
+    }
     if (story.phase !== 'highfive') return false;
     if (!raycaster.intersectObject(robot.highFiveMesh, true).length) return false;
     story.highFive(true);
@@ -624,7 +689,11 @@ function updatePlay(time, dt) {
   }
   targets.update(time, dt, viewerLocal);
 
-  for (const item of printed) if (item.kind === 'coffee') updateCoffee(item, time);
+  for (const item of printed) {
+    if (item.kind !== 'coffee') continue;
+    if (updateCoffee(item, time, dt, coffeeSpill) > 0.05) sound.play('coffee/slosh', { at: item.mesh.position, volume: 0.6, gap: 0.5 });
+  }
+  coffeeSpill.update(dt);
   updateToys(time, dt);
   butterflies.update(time, dt, input.perches);
   confetti.update(dt);
@@ -773,19 +842,20 @@ const overlay = document.getElementById('overlay');
 const startButton = document.getElementById('start');
 const flatButton = document.getElementById('flat');
 const hint = document.getElementById('hint');
-const PREVIEW_HINT = 'Træk for at kigge rundt og træk i tingene for at kaste dem. Med mus kan scrollhjulet flytte dem frem og tilbage.';
+// Startskærmen vises, før gæsten har valgt sprog, så den er på begge sprog.
+const PREVIEW_HINT = 'Træk for at kigge rundt og kaste ting. Drag to look around and throw things.';
 // Telefoner siger også ja til VR (Cardboard), så kun Quest-browseren starter i VR som standard.
 const isQuest = /OculusBrowser|Quest/i.test(navigator.userAgent);
 let vrSupported = false;
 
-startButton.textContent = isQuest ? 'Start oplevelsen' : 'Se oplevelsen';
+startButton.textContent = 'Start';
 startButton.addEventListener('click', () => (vrSupported && isQuest ? startVR() : startPreview()));
 flatButton.addEventListener('click', () => (isQuest ? startPreview() : startVR()));
 
 if (navigator.xr) {
   navigator.xr.isSessionSupported('immersive-vr').then((ok) => {
     vrSupported = ok;
-    if (ok) flatButton.textContent = isQuest ? 'Se uden VR' : 'Start i VR';
+    if (ok) flatButton.textContent = isQuest ? 'Uden VR · Without VR' : 'VR';
     flatButton.hidden = !ok;
     if (!ok || !isQuest) hint.textContent = PREVIEW_HINT;
   });
@@ -810,7 +880,7 @@ async function startVR() {
     });
     await renderer.xr.setSession(session);
   } catch (err) {
-    hint.textContent = `Kunne ikke starte VR: ${err.message}`;
+    hint.textContent = `Kunne ikke starte VR · Could not start VR: ${err.message}`;
   }
 }
 
@@ -874,9 +944,11 @@ function simulate(time, dt) {
   stage.worldToLocal(viewerLocal);
 
   world.update(time, dt);
+  reveal.update(dt, viewerPos);
   avatar.update(viewer);
   input.update(time, dt);
   physics.step(dt);
+  robot.voiceLevel = sound.voiceLevel();
   robot.update(time, dt, viewerLocal);
   updatePlay(time, dt);
   props.update(time, dt, viewer, viewerLocal);
@@ -886,8 +958,8 @@ function simulate(time, dt) {
 
 // Til fejlfinding i browserens konsol. advance(sek) spoler tiden frem uden at tegne.
 window.lounge = {
-  story, physics, input, robot, targets, butterflies, desk, printItem, dispenseDisk, startInsert, renderer, sound,
-  props, photos, bin, takePhoto, TOPICS: ALL_TOPICS,
+  story, physics, input, robot, targets, butterflies, desk, languageButtons, reveal, world, scene, camera, printItem, dispenseDisk, startInsert, renderer, sound,
+  props, photos, bin, takePhoto, allTopics,
   advance(seconds) {
     for (let t = 0; t < seconds; t += 1 / 60) {
       clock.elapsedTime += 1 / 60;

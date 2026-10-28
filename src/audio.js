@@ -13,12 +13,15 @@ const _fwd = new THREE.Vector3();
 const _up = new THREE.Vector3();
 
 export class Sound {
-  constructor(stage) {
+  // extra: lyde ud over tools/sounds.json, fx robottens replikker ('voice/intro-da').
+  constructor(stage, extra = []) {
     this.stage = stage;
+    this.extra = extra;
     this.buffers = new Map(); // 'robot/hit-1' -> AudioBuffer
     this.variants = new Map(); // 'robot/hit' -> ['robot/hit-1', 'robot/hit-2', ...]
     this.loops = [];
     this.last = new Map(); // seneste afspilning pr. lyd, så den samme lyd ikke stables
+    this.levels = {}; // forstærkning pr. lyd, så de ligger på samme niveau (se tools/levels.py)
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
     const ctx = (this.ctx = new AudioContext());
@@ -29,12 +32,25 @@ export class Sound {
     this.music.connect(this.master);
     this.sfx = ctx.createGain();
     this.sfx.connect(this.master);
+    this.voice = ctx.createGain();
+    this.voice.connect(this.master);
+    // Måler stemmens styrke, så robottens mund kan følge med (se voiceLevel).
+    this.voiceAnalyser = ctx.createAnalyser();
+    this.voiceAnalyser.fftSize = 512;
+    this.voice.connect(this.voiceAnalyser);
+    this.voiceSamples = new Float32Array(this.voiceAnalyser.fftSize);
+    this.speech = null; // den replik, robotten siger lige nu
     this.ready = this.load();
   }
 
   async load() {
     const spec = await (await fetch('tools/sounds.json')).json();
-    const names = [...spec.music, ...spec.sfx].map((e) => e.file.replace(/\.mp3$/, ''));
+    try {
+      this.levels = await (await fetch(`${ROOT}levels.json`)).json();
+    } catch (err) {
+      console.warn('Lydniveauer mangler', err);
+    }
+    const names = [...spec.music, ...spec.sfx].map((e) => e.file.replace(/\.mp3$/, '')).concat(this.extra);
     for (const name of names) {
       const base = name.replace(/-\d+$/, '');
       if (base !== name) this.variants.set(base, [...(this.variants.get(base) ?? []), name]);
@@ -102,16 +118,88 @@ export class Sound {
     if (!this.started) return;
     const t = this.ctx.currentTime;
     if (t - (this.last.get(name) ?? -1) < gap) return;
-    const buffer = this.buffers.get(this.pick(name));
+    const picked = this.pick(name);
+    const buffer = this.buffers.get(picked);
     if (!buffer) return;
     this.last.set(name, t);
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
     src.playbackRate.value = rate * (1 + (Math.random() - 0.5) * 2 * vary);
     const gain = this.ctx.createGain();
-    gain.gain.value = volume;
+    gain.gain.value = volume * (this.levels[picked] ?? 1);
     src.connect(gain).connect(this.output(at, this.sfx, ref));
     src.start(t + delay);
+  }
+
+  // Robottens replik: et filnavn eller en liste af filnavne og pauser i sekunder.
+  // Afbryder en replik, der er i gang, og skruer ned for musikken imens.
+  // onEnd kaldes, når replikken er slut, eller med det samme, hvis den ikke kan afspilles.
+  speak(voice, { at = null, onEnd = () => {} } = {}) {
+    this.stopSpeaking();
+    const parts = [].concat(voice);
+    if (!this.ctx || !this.started) {
+      onEnd();
+      return;
+    }
+    const speech = (this.speech = { sources: [], onEnd });
+    // Venter på filerne, hvis gæsten er hurtigere end netværket.
+    this.ready.then(() => {
+      if (this.speech !== speech) return;
+      const out = this.output(at, this.voice, 1.5);
+      let t = this.ctx.currentTime + 0.05;
+      for (const part of parts) {
+        if (typeof part === 'number') {
+          t += part;
+          continue;
+        }
+        const buffer = this.buffers.get(part);
+        if (!buffer) continue;
+        const src = this.ctx.createBufferSource();
+        src.buffer = buffer;
+        src.connect(out);
+        src.start(t);
+        speech.sources.push(src);
+        t += buffer.duration;
+      }
+      const last = speech.sources.at(-1);
+      if (!last) {
+        this.finishSpeaking(speech);
+        return;
+      }
+      last.onended = () => this.finishSpeaking(speech);
+      this.music.gain.setTargetAtTime(MUSIC_VOLUME * 0.45, this.ctx.currentTime, 0.15);
+    });
+  }
+
+  // Stemmens styrke lige nu (RMS, ca. 0..0.3). 0, når robotten er stille.
+  voiceLevel() {
+    if (!this.voiceAnalyser || !this.speech) return 0;
+    this.voiceAnalyser.getFloatTimeDomainData(this.voiceSamples);
+    let sum = 0;
+    for (const v of this.voiceSamples) sum += v * v;
+    return Math.sqrt(sum / this.voiceSamples.length);
+  }
+
+  stopSpeaking() {
+    const speech = this.speech;
+    if (!speech) return;
+    this.speech = null;
+    for (const src of speech.sources) {
+      src.onended = null;
+      try {
+        src.stop();
+      } catch {
+        // allerede stoppet
+      }
+    }
+    this.music.gain.setTargetAtTime(MUSIC_VOLUME, this.ctx.currentTime, 0.4);
+  }
+
+  finishSpeaking(speech) {
+    if (this.speech !== speech) return;
+    this.speech = null;
+    this.music.gain.setTargetAtTime(MUSIC_VOLUME, this.ctx.currentTime, 0.4);
+    speech.onEnd();
   }
 
   // Lyd i ring. Returnerer et håndtag til at ændre styrke og position eller stoppe den.
@@ -121,13 +209,14 @@ export class Sound {
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
     src.loop = true;
+    const level = this.levels[name] ?? 1;
     const gain = this.ctx.createGain();
-    gain.gain.value = volume;
+    gain.gain.value = volume * level;
     const out = this.output(at, bus);
     src.connect(gain).connect(out);
     src.start();
     const handle = {
-      volume: (v) => gain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.08),
+      volume: (v) => gain.gain.setTargetAtTime(v * level, this.ctx.currentTime, 0.08),
       move: (p) => out !== bus && this.place(out, p),
       stop: () => {
         gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);

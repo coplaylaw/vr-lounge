@@ -5,6 +5,11 @@ import { CVI } from './palette.js';
 export { CANNON };
 
 const STEP = 1 / 72;
+// Små kasser (klodserne er 7 cm) ryster i cannon-es og glider langsomt af hinanden.
+// Derfor lægges en ting til at sove, så snart den næsten ligger stille, og den vågner
+// først igen, når noget rammer den hurtigere end SLEEP_SPEED.
+const SLEEP_SPEED = 0.2;
+const SETTLE = { speed: 0.15, spin: 0.8, after: 0.1 };
 
 // Fysik i scenens lokale koordinater (stage), så alt følger med, når scenen drejes hen til gæsten.
 export class Physics {
@@ -16,6 +21,10 @@ export class Physics {
     world.allowSleep = true;
     world.defaultContactMaterial.friction = 0.5;
     world.defaultContactMaterial.restitution = 0.3;
+    world.solver.iterations = 20;
+    // Klodser mod klodser: ingen hop og mere friktion, så de kan stables.
+    this.blockMaterial = new CANNON.Material('block');
+    world.addContactMaterial(new CANNON.ContactMaterial(this.blockMaterial, this.blockMaterial, { friction: 0.8, restitution: 0 }));
     this.items = new Set();
     this.onImpact = null; // (item, surface, speed, other) når en ting rammer noget
   }
@@ -57,13 +66,14 @@ export class Physics {
   }
 
   // Et objekt, der kan gribes og kastes. radius bruges til greb og glød.
-  add(mesh, shape, { mass = 0.2, kind = 'thing', radius = 0.05, holdOffset = null } = {}) {
+  add(mesh, shape, { mass = 0.2, kind = 'thing', radius = 0.05, holdOffset = null, material } = {}) {
     const body = new CANNON.Body({
       mass,
       shape,
+      material,
       linearDamping: 0.05,
       angularDamping: 0.1,
-      sleepSpeedLimit: 0.06,
+      sleepSpeedLimit: SLEEP_SPEED,
       sleepTimeLimit: 0.6,
     });
     body.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
@@ -82,7 +92,7 @@ export class Physics {
 
     const item = {
       mesh, body, kind, radius, holdOffset, glow,
-      heldBy: null, frozen: false, highlight: false, appear: 1, data: {},
+      heldBy: null, frozen: false, highlight: false, appear: 1, still: 0, data: {},
     };
     body.userData = { item };
     body.addEventListener('collide', (e) => {
@@ -99,6 +109,16 @@ export class Physics {
     this.world.removeBody(item.body);
     item.mesh.removeFromParent();
     this.items.delete(item);
+    this.wakeNear(item.mesh.position);
+  }
+
+  // Ting, der lå oven på den, der tages væk, skal kunne falde ned igen.
+  wakeNear(position, radius = 0.3) {
+    for (const other of this.items) {
+      if (other.mesh.position.distanceTo(position) > radius) continue;
+      other.body.wakeUp();
+      other.still = 0;
+    }
   }
 
   // Objektet følger en hånd: kinematisk, så det stadig kan skubbe til andre ting.
@@ -107,7 +127,7 @@ export class Physics {
     item.body.type = CANNON.Body.KINEMATIC;
     item.body.velocity.setZero();
     item.body.angularVelocity.setZero();
-    item.body.wakeUp();
+    this.wakeNear(item.mesh.position);
   }
 
   moveHeld(item, position, quaternion, dt) {
@@ -153,6 +173,12 @@ export class Physics {
   step(dt) {
     this.world.step(STEP, dt, 4);
     for (const item of this.items) {
+      const b = item.body;
+      if (!item.heldBy && !item.frozen && b.sleepState !== CANNON.Body.SLEEPING) {
+        const still = b.velocity.length() < SETTLE.speed && b.angularVelocity.length() < SETTLE.spin;
+        item.still = still ? item.still + dt : 0;
+        if (item.still > SETTLE.after) b.sleep();
+      }
       if (!item.heldBy && !item.frozen) {
         item.mesh.position.copy(item.body.position);
         item.mesh.quaternion.copy(item.body.quaternion);

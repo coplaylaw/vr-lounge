@@ -56,8 +56,8 @@ adb -s <serienummer> shell am start -a android.intent.action.VIEW -d http://loca
 
 ## Ret tekster og indhold
 
-- Alle tekster: [src/content.js](src/content.js)
-- Robotten og talebobblen: [src/robot.js](src/robot.js)
+- Alle tekster på dansk og engelsk: [src/content.js](src/content.js). Sprogknapperne: [src/language.js](src/language.js)
+- Robotten: [src/robot.js](src/robot.js). Taleboblen er skjult. Robotten taler med indtalt stemme, og munden følger stemmens styrke.
 - Bordet, maskinen og printpladen: [src/desk.js](src/desk.js)
 - Disketter, klodser, kanon, kaffe, skydeskiver, konfetti og sommerfugle: [src/items.js](src/items.js)
 - Bonusdisketternes ting (kamera og billeder, stempel og aftale, papirfly, papirkugler og skraldespand): [src/toys.js](src/toys.js)
@@ -67,6 +67,8 @@ adb -s <serienummer> shell am start -a android.intent.action.VIEW -d http://loca
 - Forløbet: [src/main.js](src/main.js)
 - Rummet og byen: [src/world.js](src/world.js), teksturer: [src/materials.js](src/materials.js)
 - Lyset: gulv, vægge og loft har bagt lys, som regnes ud ved start i [src/bake.js](src/bake.js). Lyskilderne (spots, gulvlampe, vinduer) og skyggekasterne sættes op i `buildRoom` i world.js, og styrken justeres i `bakeRoom`. Gulvlampens lys bages for sig (gruppen `lamp`) og lægges oven i, så lampen kan tændes og slukkes.
+- Lydniveauerne: `python3 tools/levels.py` måler alle lyde og skriver en forstærkning pr. lyd til `assets/audio/levels.json`. Kør det igen, når der kommer nye lyde, og justér målene i scriptet.
+- Kaffen: overfladen og udhældningen styres af `updateCoffee` og `CoffeeSpill` i [src/items.js](src/items.js).
 - CVI-farverne: [src/palette.js](src/palette.js). Brug dem herfra i stedet for at skrive hex-koder. Logoet ligger i [assets/coplay-logo.png](assets/coplay-logo.png).
 
 ## Musik og lydeffekter
@@ -79,15 +81,22 @@ ELEVENLABS_API_KEY=... python3 tools/generate_audio.py --force <del af filnavn>
 
 Uden `--force` laves kun de filer, der mangler.
 
+Robottens replikker er indtalt med CO:BOT-stemmen og ligger i `assets/audio/voice`. Hver replik i [src/content.js](src/content.js) har et lydspor, fx `voice/topic-2-play-en`. Ret en tekst, slet dens lydfil, og indtal den igen med:
+
+```bash
+ELEVENLABS_API_KEY=... node tools/generate_voice.mjs
+```
+
 Lydene afspilles af [src/audio.js](src/audio.js) med rumlig lyd, så de kommer fra det sted i rummet, hvor det sker. Hvilken lyd der hører til hvilken hændelse, står i [src/main.js](src/main.js). Filer, der ender på `-1`, `-2` osv., er varianter, og der vælges en tilfældig af dem hver gang.
 
 ## Opførsel
 
-- Velkomst, high five (springes over efter 14 sekunder), derefter én diskette ad gangen. Har gæsten prøvet alle fire, kommer de fire bonusdisketter på én gang. Når alle otte er prøvet, kommer en afslutning, og alle disketterne fortsætter i ring.
+- Indtil sproget er valgt, er der kun robotten, sprogknapperne og et gitter i et mørkt tomrum. Bagefter "indlæses" verdenen ud fra gæsten: først som lysende cyan gitterlinjer, der så fyldes ud ([src/reveal.js](src/reveal.js)).
+- Gæsten vælger først dansk eller engelsk ved at røre en af de to knapper over bordet (eller klikke på den i den flade visning). Derefter velkomst, high five (springes over efter 14 sekunder) og én diskette ad gangen. Har gæsten prøvet alle fire, kommer de fire bonusdisketter på én gang. Når alle otte er prøvet, kommer en afslutning, og alle disketterne fortsætter i ring.
 - Ryger en diskette på gulvet, kaster robotten en ny efter 8 sekunder.
 - Hænger maleriet skævt, eller er vasen væltet, flyver robotten hen og retter det efter et par sekunder, når den ikke er i gang med andet.
 - Rører gæsten ikke noget i 30 sekunder, kommer et tip.
-- Tages headsettet af i mere end 15 sekunder, ryddes bordet, og oplevelsen starter forfra for næste gæst.
+- Tages headsettet af i mere end 15 sekunder, ryddes bordet, og oplevelsen starter forfra med sprogvalget for næste gæst.
 - Scenen drejes, så robotten altid står foran gæsten, når VR starter, eller når brillerne centreres igen.
 
 ## Fejlfinding

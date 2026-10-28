@@ -351,8 +351,8 @@ function buildRoom(stage, physics, glowTex, animated) {
     light.cylinder(x, z, 0.16, 0, 0.05, 0.6);
   }
 
-  // Sort gulvlampe med stor skærm.
-  const lamp = { x: -2.25, z: -3.45 };
+  // Sort gulvlampe med stor skærm, mellem det midterste og det højre vindue.
+  const lamp = { x: 1.5, z: -3.45 };
   kit.add(new THREE.CylinderGeometry(0.16, 0.16, 0.025, 24), M.blackMatte, at(lamp.x, 0.0125, lamp.z));
   kit.add(new THREE.CylinderGeometry(0.012, 0.012, 1.7, 8), M.blackMatte, at(lamp.x, 0.85, lamp.z));
   const shade = new THREE.Mesh(
@@ -877,19 +877,22 @@ function buildSky(stage) {
       `,
     }),
   );
+  sky.userData.revealAt = 60; // himlen kommer, når indlæsningen er nået ud over byen
   stage.add(sky);
 
   const rnd = seededRandom(99);
-  const stars = [];
+  const starPos = [];
   for (let i = 0; i < 600; i++) {
     const theta = rnd() * Math.PI * 2;
     const y = 0.15 + rnd() * 0.85;
     const r = Math.sqrt(1 - y * y);
-    stars.push(Math.cos(theta) * r * 1400, y * 1400, Math.sin(theta) * r * 1400);
+    starPos.push(Math.cos(theta) * r * 1400, y * 1400, Math.sin(theta) * r * 1400);
   }
   const starGeo = new THREE.BufferGeometry();
-  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(stars, 3));
-  stage.add(new THREE.Points(starGeo, new THREE.PointsMaterial({
+  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
     color: 0xcfe0ff, size: 1.5, sizeAttenuation: false, transparent: true, opacity: 0.3, fog: false,
-  })));
+  }));
+  stars.userData.revealAt = 60;
+  stage.add(stars);
 }

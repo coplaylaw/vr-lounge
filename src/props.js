@@ -115,9 +115,13 @@ export class Props {
     lamp.level.value = 1;
     this.lampOffSeen = false;
     this.headsetSeen = false;
-    this.headsets = this.refs.headsetSpots.map((p) => createHeadset(this.physics, p));
+    this.headsets = []; // lægges på bænken med spawnHeadsets, når rummet er indlæst
     this.worn = null;
     this.view.visible = false;
+  }
+
+  spawnHeadsets() {
+    this.headsets = this.refs.headsetSpots.map((p) => createHeadset(this.physics, p));
   }
 
   // En ting eller et skud ramte en af tingene. surface er fysikkens navn for fladen.

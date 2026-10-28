@@ -24,7 +24,7 @@ const TEXT = {
     INTRO: [
       {
         title: 'Hej og velkommen!',
-        body: 'Jeg hedder CO:BOT og passer receptionen her hos CO:PLAY.',
+        body: 'Jeg hedder CO:BOT og passer den virtuelle reception her hos CO:PLAY.',
       },
     ],
 
@@ -112,7 +112,7 @@ const TEXT = {
     INTRO: [
       {
         title: 'Hi and welcome!',
-        body: 'I am CO:BOT, and I look after the reception here at CO:PLAY.',
+        body: 'I am CO:BOT, and I look after the virtual reception here at CO:PLAY.',
       },
     ],
 

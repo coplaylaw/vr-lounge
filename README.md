@@ -49,6 +49,7 @@ adb -s <serienummer> shell am start -a android.intent.action.VIEW -d http://loca
 - Greb og kast: [src/input.js](src/input.js), fysik: [src/physics.js](src/physics.js)
 - Forløbet: [src/main.js](src/main.js)
 - Rummet og byen: [src/world.js](src/world.js), teksturer: [src/materials.js](src/materials.js)
+- Lyset: gulv, vægge og loft har bagt lys, som regnes ud ved start i [src/bake.js](src/bake.js). Lyskilderne (spots, gulvlampe, vinduer) og skyggekasterne sættes op i `buildRoom` i world.js, og styrken justeres i `bakeRoom`.
 - CVI-farverne: [src/palette.js](src/palette.js). Brug dem herfra i stedet for at skrive hex-koder. Logoet ligger i [assets/coplay-logo.png](assets/coplay-logo.png).
 
 ## Opførsel

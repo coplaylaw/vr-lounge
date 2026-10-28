@@ -107,6 +107,14 @@ export class Robot {
     this.handGlow.scale.setScalar(0.3);
     this.hands[1].add(this.handGlow);
 
+    // Blød skygge på gulvet under robotten.
+    this.shadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.7, 0.7).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ map: glowTex, color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }),
+    );
+    this.shadow.position.set(HOME.x, 0.012, HOME.z);
+    stage.add(this.shadow);
+
     // Kollider om hovedet, så ting kan ramme robotten.
     this.collider = new CANNON.Body({ mass: 0, type: CANNON.Body.KINEMATIC, shape: new CANNON.Sphere(HEAD_RADIUS) });
     physics.world.addBody(this.collider);
@@ -198,6 +206,8 @@ export class Robot {
     this.recoil.addScaledVector(this.recoilVelocity, dt);
     this.group.position.copy(HOME).add(this.recoil);
     this.group.position.y += Math.sin(time * 1.6) * 0.02;
+    this.shadow.position.x = this.group.position.x;
+    this.shadow.position.z = this.group.position.z;
 
     // Hovedet følger gæsten.
     this.headPosition(this.tmp);

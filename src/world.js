@@ -69,10 +69,12 @@ export function buildWorld(stage, physics) {
   physics.addRoom(ROOM);
   buildRoom(stage, physics, glowTex, animated);
   const trainCars = buildCity(stage, animated, holoMaterials);
+  const spaceship = buildSpaceship(stage, animated, glowTex);
   buildSky(stage);
 
   return {
     trainCars, // svævetogets vogne, til lyden når toget kører forbi
+    spaceship, // spaceship.onPass(position) kaldes, når skibet flyver forbi vinduerne
     update(time, dt) {
       for (const m of holoMaterials) m.uniforms.uTime.value = time;
       for (const fn of animated) fn(time, dt);
@@ -698,6 +700,100 @@ function buildLandmark(stage, winTex) {
   }
 }
 
+// Et rumskib, der af og til flyver forbi vinduerne, den modsatte vej af svævetoget.
+// Toget kører med stigende vinkel om huset, så skibet flyver med faldende vinkel.
+const SHIP = { radius: 30, height: 4.2, from: Math.PI + 1.3, to: Math.PI - 1.75, seconds: 12, scale: 1.1 };
+
+function buildSpaceship(stage, animated, glowTex) {
+  const ship = new THREE.Group();
+  ship.visible = false;
+  ship.scale.setScalar(SHIP.scale);
+  stage.add(ship);
+
+  const hull = new THREE.MeshLambertMaterial({ color: 0xdfe5ec });
+  const dark = new THREE.MeshLambertMaterial({ color: CVI.navy });
+  const glow = new THREE.MeshBasicMaterial({ color: CVI.cyan, toneMapped: false });
+  // Skroget peger langs +z (fremad), så lookAt kan dreje det i flyveretningen.
+  const body = new THREE.LatheGeometry([
+    new THREE.Vector2(0.01, -7), new THREE.Vector2(1.1, -6.6), new THREE.Vector2(1.6, -4),
+    new THREE.Vector2(1.5, 1), new THREE.Vector2(1.0, 4.5), new THREE.Vector2(0.01, 7),
+  ], 16).rotateX(Math.PI / 2);
+  const fuselage = new THREE.Mesh(body, hull);
+  fuselage.scale.set(1, 0.6, 1);
+  ship.add(fuselage);
+  const cockpit = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), dark);
+  cockpit.scale.set(0.9, 0.6, 1.8);
+  cockpit.position.set(0, 0.6, 2.2);
+  ship.add(cockpit);
+  for (const side of [-1, 1]) {
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(6, 0.25, 3), hull);
+    wing.position.set(side * 4, -0.2, -2.2);
+    wing.rotation.y = side * 0.35;
+    ship.add(wing);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.27, 0.35), dark);
+    stripe.position.set(side * 4, -0.2, -1.4);
+    stripe.rotation.y = side * 0.35;
+    ship.add(stripe);
+    const engine = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.8, 3.2, 12).rotateX(Math.PI / 2), dark);
+    engine.position.set(side * 2.1, -0.3, -5.2);
+    ship.add(engine);
+    const nozzle = new THREE.Mesh(new THREE.CircleGeometry(0.6, 12), glow);
+    nozzle.position.set(side * 2.1, -0.3, -6.82);
+    nozzle.rotation.y = Math.PI;
+    ship.add(nozzle);
+    // Udstødningsflamme bag motoren.
+    const flame = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.55, 0.05, 7, 12, 1, true).rotateX(-Math.PI / 2),
+      beamMaterial(CVI.cyan, 0.7),
+    );
+    flame.position.set(side * 2.1, -0.3, -10.3);
+    ship.add(flame);
+    const tip = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTex, color: CVI.orange, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    }));
+    tip.scale.setScalar(2.2);
+    tip.position.set(side * 7, -0.2, -3.2);
+    tip.userData.blink = side;
+    ship.add(tip);
+  }
+
+  let start = 25 + Math.random() * 15; // første tur et stykke efter start
+  let passed = false;
+  let now = 0;
+  // fly() sender skibet af sted med det samme (til fejlfinding: lounge.world.spaceship.fly()).
+  const api = { onPass: null, group: ship, fly: () => { start = now; passed = false; } };
+  const dir = new THREE.Vector3();
+  animated.push((time) => {
+    now = time;
+    const t = (time - start) / SHIP.seconds;
+    if (t < 0) {
+      ship.visible = false;
+      return;
+    }
+    if (t > 1) {
+      ship.visible = false;
+      start = time + 35 + Math.random() * 40;
+      passed = false;
+      return;
+    }
+    ship.visible = true;
+    const a = SHIP.from + (SHIP.to - SHIP.from) * t;
+    const y = SHIP.height + Math.sin(t * Math.PI) * 0.8;
+    ship.position.set(Math.sin(a) * SHIP.radius, y, Math.cos(a) * SHIP.radius);
+    dir.set(-Math.cos(a), 0, Math.sin(a)); // faldende vinkel
+    ship.lookAt(ship.position.x + dir.x, y, ship.position.z + dir.z);
+    ship.rotateZ(-0.25); // krænger ind i svinget
+    for (const child of ship.children) {
+      if (child.userData.blink) child.material.opacity = Math.sin(time * 6 + child.userData.blink) > 0 ? 1 : 0.2;
+    }
+    if (!passed && a < Math.PI) {
+      passed = true;
+      api.onPass?.(ship.position);
+    }
+  });
+  return api;
+}
+
 // Svævetog i et glasrør, der kører rundt om huset i gæstens øjenhøjde.
 function buildMonorail(stage, animated) {
   const points = [];
@@ -820,19 +916,22 @@ function buildSky(stage) {
       `,
     }),
   );
+  sky.userData.revealAt = 60; // himlen kommer, når indlæsningen er nået ud over byen
   stage.add(sky);
 
   const rnd = seededRandom(99);
-  const stars = [];
+  const starPos = [];
   for (let i = 0; i < 600; i++) {
     const theta = rnd() * Math.PI * 2;
     const y = 0.15 + rnd() * 0.85;
     const r = Math.sqrt(1 - y * y);
-    stars.push(Math.cos(theta) * r * 1400, y * 1400, Math.sin(theta) * r * 1400);
+    starPos.push(Math.cos(theta) * r * 1400, y * 1400, Math.sin(theta) * r * 1400);
   }
   const starGeo = new THREE.BufferGeometry();
-  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(stars, 3));
-  stage.add(new THREE.Points(starGeo, new THREE.PointsMaterial({
+  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
     color: 0xcfe0ff, size: 1.5, sizeAttenuation: false, transparent: true, opacity: 0.3, fog: false,
-  })));
+  }));
+  stars.userData.revealAt = 60;
+  stage.add(stars);
 }

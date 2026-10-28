@@ -2,15 +2,16 @@ import * as THREE from 'three';
 import { buildWorld, SKY_HORIZON } from './world.js';
 import { Physics } from './physics.js';
 import { Robot } from './robot.js';
-import { Desk, DESK_TOP, PAD } from './desk.js';
+import { Desk, DESK, DESK_TOP, PAD } from './desk.js';
 import {
-  createDisk, createLetterBlock, createBlaster, createCoffee, updateCoffee, BLASTER_MUZZLE,
+  createDisk, createLetterBlock, createBlaster, createCoffee, updateCoffee, CoffeeSpill, BLASTER_MUZZLE,
   Projectiles, Targets, Confetti, Butterflies,
 } from './items.js';
 import { Input } from './input.js';
 import { Sound } from './audio.js';
 import { glowTexture } from './materials.js';
 import { LanguageButtons } from './language.js';
+import { Reveal } from './reveal.js';
 import {
   SPEAKER, LANGUAGE_PROMPT, setLanguage, SIGN,
   INTRO, HIGH_FIVE, HIGH_FIVE_DONE, DISK_HINT, NEXT_DISK, TOPICS, HIT_LINES, HINTS, OUTRO,
@@ -26,6 +27,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.xr.enabled = true;
+renderer.localClippingEnabled = true; // kaffens overflade klippes ved koppens kant
 renderer.xr.setReferenceSpaceType('local-floor');
 renderer.xr.setFoveation(1);
 document.body.appendChild(renderer.domElement);
@@ -51,15 +53,27 @@ scene.add(stage);
 
 const glowTex = glowTexture();
 const physics = new Physics(stage, glowTex);
-const world = buildWorld(stage, physics);
-const desk = new Desk(stage, physics);
+// Rummet, bordet og byen ligger i worldRoot, så de kan "indlæses", når gæsten har valgt sprog.
+const worldRoot = new THREE.Group();
+stage.add(worldRoot);
+const world = buildWorld(worldRoot, physics);
+const desk = new Desk(worldRoot, physics);
+desk.beam.userData.noReveal = true; // styres af printeren selv
+const reveal = new Reveal(scene, worldRoot);
+reveal.prepare();
 const robot = new Robot(stage, physics, SPEAKER, glowTex);
 const projectiles = new Projectiles(stage, physics);
 const targets = new Targets(stage);
 const confetti = new Confetti(stage);
 const butterflies = new Butterflies(stage);
+// Spildt kaffe lander på bordet foran gæsten eller på gulvet.
+const coffeeSpill = new CoffeeSpill(stage, [{
+  y: DESK_TOP, minX: -DESK.width / 2, maxX: DESK.width / 2, minZ: DESK.z - DESK.depth / 2, maxZ: DESK.z + DESK.depth / 2,
+}]);
 const languageButtons = new LanguageButtons(stage);
 const sound = new Sound(stage);
+// Rumskibet lyder som et dybere sus af toget.
+world.spaceship.onPass = (pos) => sound.play('ambience/monorail-pass', { at: pos, ref: 30, volume: 0.9, rate: 0.7 });
 const clock = new THREE.Clock();
 const now = () => clock.elapsedTime;
 
@@ -190,6 +204,7 @@ const story = {
     targets.clear();
     confetti.clear();
     butterflies.clear();
+    coffeeSpill.clear();
     timers = [];
     printed = [];
     activeDisk = null;
@@ -204,6 +219,7 @@ const story = {
     robot.wave(4, now());
     sound.play('robot/wave', { at: robot.headPosition(tmp), delay: 0.4 });
     languageButtons.show();
+    reveal.hide();
     this.say(LANGUAGE_PROMPT);
   },
 
@@ -211,6 +227,8 @@ const story = {
     setLanguage(id);
     desk.setSign(SIGN);
     languageButtons.hide();
+    reveal.start();
+    sound.play('desk/print', { volume: 0.8 });
     robot.express('happy', 1.2, now());
     sound.play('robot/happy', { at: robot.headPosition(tmp) });
     this.phase = 'intro';
@@ -468,7 +486,11 @@ function updatePlay(time, dt) {
   }
   targets.update(time, dt, viewerLocal);
 
-  for (const item of printed) if (item.kind === 'coffee') updateCoffee(item, time);
+  for (const item of printed) {
+    if (item.kind !== 'coffee') continue;
+    if (updateCoffee(item, time, dt, coffeeSpill) > 0.05) sound.play('coffee/slosh', { at: item.mesh.position, volume: 0.6, gap: 0.5 });
+  }
+  coffeeSpill.update(dt);
   butterflies.update(time, dt, input.perches);
   confetti.update(dt);
   updateSounds(time, dt, diskNear);
@@ -642,6 +664,7 @@ function simulate(time, dt) {
   stage.worldToLocal(viewerLocal);
 
   world.update(time, dt);
+  reveal.update(dt, viewerPos);
   input.update(time, dt);
   physics.step(dt);
   robot.update(time, dt, viewerLocal);
@@ -652,7 +675,7 @@ function simulate(time, dt) {
 
 // Til fejlfinding i browserens konsol. advance(sek) spoler tiden frem uden at tegne.
 window.lounge = {
-  story, physics, input, robot, targets, butterflies, desk, languageButtons, printItem, dispenseDisk, startInsert, renderer, sound,
+  story, physics, input, robot, targets, butterflies, desk, languageButtons, reveal, world, scene, camera, printItem, dispenseDisk, startInsert, renderer, sound,
   advance(seconds) {
     for (let t = 0; t < seconds; t += 1 / 60) {
       clock.elapsedTime += 1 / 60;

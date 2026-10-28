@@ -13,8 +13,10 @@ const _fwd = new THREE.Vector3();
 const _up = new THREE.Vector3();
 
 export class Sound {
-  constructor(stage) {
+  // extra: lyde ud over tools/sounds.json, fx robottens replikker ('voice/intro-da').
+  constructor(stage, extra = []) {
     this.stage = stage;
+    this.extra = extra;
     this.buffers = new Map(); // 'robot/hit-1' -> AudioBuffer
     this.variants = new Map(); // 'robot/hit' -> ['robot/hit-1', 'robot/hit-2', ...]
     this.loops = [];
@@ -30,6 +32,9 @@ export class Sound {
     this.music.connect(this.master);
     this.sfx = ctx.createGain();
     this.sfx.connect(this.master);
+    this.voice = ctx.createGain();
+    this.voice.connect(this.master);
+    this.speech = null; // den replik, robotten siger lige nu
     this.ready = this.load();
   }
 
@@ -40,7 +45,7 @@ export class Sound {
     } catch (err) {
       console.warn('Lydniveauer mangler', err);
     }
-    const names = [...spec.music, ...spec.sfx].map((e) => e.file.replace(/\.mp3$/, ''));
+    const names = [...spec.music, ...spec.sfx].map((e) => e.file.replace(/\.mp3$/, '')).concat(this.extra);
     for (const name of names) {
       const base = name.replace(/-\d+$/, '');
       if (base !== name) this.variants.set(base, [...(this.variants.get(base) ?? []), name]);
@@ -119,6 +124,68 @@ export class Sound {
     gain.gain.value = volume * (this.levels[picked] ?? 1);
     src.connect(gain).connect(this.output(at, this.sfx, ref));
     src.start(t + delay);
+  }
+
+  // Robottens replik: et filnavn eller en liste af filnavne og pauser i sekunder.
+  // Afbryder en replik, der er i gang, og skruer ned for musikken imens.
+  // onEnd kaldes, når replikken er slut, eller med det samme, hvis den ikke kan afspilles.
+  speak(voice, { at = null, onEnd = () => {} } = {}) {
+    this.stopSpeaking();
+    const parts = [].concat(voice);
+    if (!this.ctx || !this.started) {
+      onEnd();
+      return;
+    }
+    const speech = (this.speech = { sources: [], onEnd });
+    // Venter på filerne, hvis gæsten er hurtigere end netværket.
+    this.ready.then(() => {
+      if (this.speech !== speech) return;
+      const out = this.output(at, this.voice, 1.5);
+      let t = this.ctx.currentTime + 0.05;
+      for (const part of parts) {
+        if (typeof part === 'number') {
+          t += part;
+          continue;
+        }
+        const buffer = this.buffers.get(part);
+        if (!buffer) continue;
+        const src = this.ctx.createBufferSource();
+        src.buffer = buffer;
+        src.connect(out);
+        src.start(t);
+        speech.sources.push(src);
+        t += buffer.duration;
+      }
+      const last = speech.sources.at(-1);
+      if (!last) {
+        this.finishSpeaking(speech);
+        return;
+      }
+      last.onended = () => this.finishSpeaking(speech);
+      this.music.gain.setTargetAtTime(MUSIC_VOLUME * 0.45, this.ctx.currentTime, 0.15);
+    });
+  }
+
+  stopSpeaking() {
+    const speech = this.speech;
+    if (!speech) return;
+    this.speech = null;
+    for (const src of speech.sources) {
+      src.onended = null;
+      try {
+        src.stop();
+      } catch {
+        // allerede stoppet
+      }
+    }
+    this.music.gain.setTargetAtTime(MUSIC_VOLUME, this.ctx.currentTime, 0.4);
+  }
+
+  finishSpeaking(speech) {
+    if (this.speech !== speech) return;
+    this.speech = null;
+    this.music.gain.setTargetAtTime(MUSIC_VOLUME, this.ctx.currentTime, 0.4);
+    speech.onEnd();
   }
 
   // Lyd i ring. Returnerer et håndtag til at ændre styrke og position eller stoppe den.

@@ -54,6 +54,8 @@ def main():
     levels = {}
     for path in sorted(ROOT.rglob('*.mp3')):
         name = path.relative_to(ROOT).with_suffix('').as_posix()
+        if name.startswith('voice/'):
+            continue  # robottens stemme afspilles for sig (Sound.speak) og ligger allerede jævnt
         lufs = loudness(path)
         if lufs is None or lufs < -70:
             continue

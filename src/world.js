@@ -7,7 +7,7 @@ import { DESK, DESK_TOP, PRINTER } from './desk.js';
 import {
   seededRandom, windowTexture, logoNeonTexture, clockFaceTexture, glowTexture, hologramMaterial, beamMaterial,
   floorTexture, plasterTexture, columnTexture, ceilingTexture, ductTexture, rugTexture, curtainTexture,
-  paintingTexture, deskFrontTexture, leafTexture,
+  paintingTexture, deskFrontTexture, leafTexture, boxWithFace,
 } from './materials.js';
 
 // Gæsten sidder i origo og kigger mod -Z. Rummet er bygget over CO:PLAYs reception:
@@ -140,9 +140,7 @@ function buildRoom(stage, physics, glowTex, animated) {
       part(WIN.halfWidth * 2, 0.08, c, WIN.sill + 0.04);
       for (const y of [WIN.sill + 0.85, WIN.top - 0.5]) part(WIN.halfWidth * 2, 0.045, c, y);
       kit.add(new THREE.BoxGeometry(WIN.halfWidth * 2 + 0.1, 0.03, 0.2), M.trim, matrix.clone().multiply(at(c, WIN.sill, -0.08)));
-      const pane = new THREE.Mesh(new THREE.PlaneGeometry(WIN.halfWidth * 2, span), M.glass);
-      pane.applyMatrix4(matrix.clone().multiply(at(c, WIN.sill + span / 2, zMid - 0.02)));
-      room.add(pane);
+      kit.add(new THREE.PlaneGeometry(WIN.halfWidth * 2, span), M.glass, matrix.clone().multiply(at(c, WIN.sill + span / 2, zMid - 0.02)));
       // Svagt blåt skumringslys ind ad vinduet.
       const p = new THREE.Vector3(c, 1.8, -0.4).applyMatrix4(matrix);
       const d = new THREE.Vector3(0, 0, 1).transformDirection(matrix);
@@ -283,8 +281,8 @@ function buildRoom(stage, physics, glowTex, animated) {
   painting.position.set(-1.5, 2.6, minZ + 0.03);
   room.add(painting);
   const canvas = new THREE.Mesh(
-    new THREE.BoxGeometry(1.0, 1.5, 0.04),
-    [M.trim, M.trim, M.trim, M.trim, new THREE.MeshLambertMaterial({ map: paintingTexture() }), M.trim],
+    boxWithFace(1.0, 1.5, 0.04, 4),
+    [M.trim, new THREE.MeshLambertMaterial({ map: paintingTexture() })],
   );
   canvas.position.y = -0.8;
   painting.add(canvas);
@@ -787,18 +785,22 @@ function buildMonorail(stage, animated) {
   }
   stage.add(new THREE.Mesh(mergeGeometries(pillars), trackMat));
 
-  const bodyMat = new THREE.MeshBasicMaterial({ color: CVI.blue });
-  const windowMat = new THREE.MeshBasicMaterial({ color: 0xf6e3c8, toneMapped: false });
-  const cars = [];
-  for (let i = 0; i < 5; i++) {
-    const car = new THREE.Group();
-    car.add(new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.4, 9), bodyMat));
-    const windows = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.7, 8.4), windowMat);
-    windows.position.y = 0.3;
-    car.add(windows);
-    stage.add(car);
-    cars.push(car);
-  }
+  // Vognene er én InstancedMesh (krop og vinduer i samme geometri med farver pr. hjørne), så hele toget
+  // tegnes med ét kald. cars er usynlige pladsholdere, som lyden følger.
+  const colored = (geo, color) => {
+    const c = new THREE.Color(color);
+    const n = geo.attributes.position.count;
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(Array.from({ length: n * 3 }, (_, k) => c.toArray()[k % 3]), 3));
+    return geo;
+  };
+  const carGeo = mergeGeometries([
+    colored(new THREE.BoxGeometry(2.6, 2.4, 9), CVI.blue),
+    colored(new THREE.BoxGeometry(2.7, 0.7, 8.4).translate(0, 0.3, 0), 0xf6e3c8),
+  ]);
+  const train = new THREE.InstancedMesh(carGeo, new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }), 5);
+  train.frustumCulled = false; // vognene flytter sig, så den beregnede omsluttende kugle passer ikke
+  stage.add(train);
+  const cars = Array.from({ length: 5 }, () => new THREE.Object3D());
   const length = curve.getLength();
   const tmp = new THREE.Vector3();
   animated.push((time) => {
@@ -810,7 +812,10 @@ function buildMonorail(stage, animated) {
       curve.getPointAt((u + 0.002) % 1, tmp);
       tmp.y += 1.6;
       car.lookAt(tmp);
+      car.updateMatrix();
+      train.setMatrixAt(i, car.matrix);
     });
+    train.instanceMatrix.needsUpdate = true;
   });
   return cars;
 }

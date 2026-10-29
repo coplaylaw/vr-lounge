@@ -737,7 +737,7 @@ function updatePlay(time, dt) {
   }
   coffeeSpill.update(dt);
   updateToys(time, dt);
-  butterflies.update(time, dt, butterflyPerches(), input.perches);
+  if (butterflies.list.length) butterflies.update(time, dt, butterflyPerches(), input.perches);
   confetti.update(dt);
   updateSounds(time, dt, diskNear);
 }
@@ -1012,6 +1012,7 @@ function simulate(time, dt) {
   reveal.update(dt, viewerPos);
   avatar.update(viewer);
   input.update(time, dt);
+  projectiles.sweep(dt);
   physics.step(dt);
   robot.voiceLevel = sound.voiceLevel();
   robot.update(time, dt, viewerLocal);
@@ -1024,7 +1025,7 @@ function simulate(time, dt) {
 // Til fejlfinding i browserens konsol. advance(sek) spoler tiden frem uden at tegne.
 window.lounge = {
   story, physics, input, robot, targets, butterflies, desk, languageButtons, reveal, world, scene, camera, printItem, dispenseDisk, startInsert, renderer, sound,
-  props, photos, bin, takePhoto, allTopics,
+  props, photos, bin, takePhoto, allTopics, projectiles,
   advance(seconds) {
     for (let t = 0; t < seconds; t += 1 / 60) {
       clock.elapsedTime += 1 / 60;

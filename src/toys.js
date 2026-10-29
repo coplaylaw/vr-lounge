@@ -3,7 +3,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CANNON } from './physics.js';
 import {
-  contractTexture, stampTexture, paperTexture, photoFrameTexture, seededRandom,
+  contractTexture, stampTexture, paperTexture, photoFrameTexture, seededRandom, boxWithFace,
 } from './materials.js';
 import { CVI } from './palette.js';
 
@@ -202,8 +202,8 @@ export function createStamp(physics, position) {
 export function createContract(physics, position) {
   const paper = new THREE.MeshLambertMaterial({ color: 0xf6f5f0 });
   const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(0.15, 0.003, 0.21),
-    [paper, paper, new THREE.MeshLambertMaterial({ map: contractTexture() }), paper, paper, paper],
+    boxWithFace(0.15, 0.003, 0.21, 2),
+    [paper, new THREE.MeshLambertMaterial({ map: contractTexture() })],
   );
   mesh.position.copy(position);
   return physics.add(mesh, new CANNON.Box(new CANNON.Vec3(0.075, 0.003, 0.105)), {

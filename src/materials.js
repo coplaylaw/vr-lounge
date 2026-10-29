@@ -1,6 +1,20 @@
 import * as THREE from 'three';
 import { CVI, CYAN_LIGHT } from './palette.js';
 
+// En kasse med sit eget materiale på én side (face: 0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z) og samme
+// materiale på resten. Siderne lægges i rækkefølge, så kassen tegnes med to kald i stedet for seks.
+// Brug den med materialerne [resten, siden].
+export function boxWithFace(width, height, depth, face) {
+  const geo = new THREE.BoxGeometry(width, height, depth);
+  const index = Array.from(geo.index.array);
+  const sides = [0, 1, 2, 3, 4, 5].map((i) => index.slice(i * 6, i * 6 + 6));
+  geo.setIndex([...sides.filter((_, i) => i !== face), sides[face]].flat());
+  geo.clearGroups();
+  geo.addGroup(0, 30, 0);
+  geo.addGroup(30, 6, 1);
+  return geo;
+}
+
 // Deterministisk tilfældighed, så byen og teksturerne ser ens ud hver gang.
 export function seededRandom(seed) {
   let a = seed >>> 0;

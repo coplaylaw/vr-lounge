@@ -328,7 +328,8 @@ export class Input {
       this.updateHeld(source, dt);
       if (!source.held && !source.pulling) this.findTarget(source);
       else source.target = null;
-      source.controllerModel.visible = !source.isHand;
+      // Holder gæsten noget, erstatter tingen controlleren i hånden.
+      source.controllerModel.visible = !source.isHand && !source.held && !source.pulling;
 
       // Strålen vises svagt, og tydeligt når den peger på noget, der kan hentes.
       const far = source.target?.mode === 'ray';
@@ -340,14 +341,18 @@ export class Input {
 
   track(source, time) {
     const h = source.history;
-    h.push({ p: source.position.clone(), q: source.quaternion.clone(), t: time });
-    if (h.length > HISTORY) h.shift();
+    // Den ældste måling genbruges, så der ikke laves nye objekter hvert billede (færre pauser til oprydning).
+    const entry = h.length >= HISTORY ? h.shift() : { p: new THREE.Vector3(), q: new THREE.Quaternion(), t: 0 };
+    entry.p.copy(source.position);
+    entry.q.copy(source.quaternion);
+    entry.t = time;
+    h.push(entry);
     const first = h[0];
     const last = h[h.length - 1];
     const span = last.t - first.t;
     if (span <= 0) return;
     source.velocity.subVectors(last.p, first.p).divideScalar(span);
-    const dq = _q.copy(last.q).multiply(first.q.clone().invert());
+    const dq = _q.copy(first.q).invert().premultiply(last.q);
     if (dq.w < 0) dq.set(-dq.x, -dq.y, -dq.z, -dq.w);
     const angle = 2 * Math.acos(Math.min(1, dq.w));
     const sin = Math.sqrt(1 - dq.w * dq.w);

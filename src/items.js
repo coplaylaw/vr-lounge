@@ -297,10 +297,22 @@ export class CoffeeSpill {
 
 // --- Skud fra konfettikanonen ---
 
+const SHOT_GROUP = 4; // skuddenes egen kollisionsgruppe, så strålen herunder ikke rammer dem selv
+const SHOT_PUSH = 1.5; // skuddets bevægelsesmængde ganges op, så selv tunge ting kan ses at blive skubbet
+const _rayResult = new CANNON.RaycastResult();
+const _rayOptions = { collisionFilterMask: ~SHOT_GROUP, skipBackfaces: true };
+const _to = new CANNON.Vec3();
+const _impulse = new CANNON.Vec3();
+const _point = new CANNON.Vec3();
+
+// Skuddene er så hurtige, at de kan flyve igennem en klods mellem to fysiktrin, og en ting, der sover,
+// mærker ikke et almindeligt sammenstød. Derfor sendes en stråle ud foran hvert skud før fysiktrinnet
+// (sweep), og rammer den en ting, får tingen et skub i træfpunktet, og skuddet preller af.
 export class Projectiles {
   constructor(stage, physics) {
     this.stage = stage;
     this.world = physics.world;
+    this.physics = physics;
     this.list = [];
     this.geometry = new THREE.SphereGeometry(0.017, 12, 8);
     this.materials = [CVI.cyan, CVI.orange, CVI.blue, CVI.sand].map(
@@ -316,7 +328,7 @@ export class Projectiles {
         shot = this.list.reduce((a, b) => (a.life < b.life ? a : b));
       } else {
         const mesh = new THREE.Mesh(this.geometry, this.materials[this.list.length % this.materials.length]);
-        const body = new CANNON.Body({ mass: 0.02, shape: this.shape, linearDamping: 0.01 });
+        const body = new CANNON.Body({ mass: 0.02, shape: this.shape, linearDamping: 0.01, collisionFilterGroup: SHOT_GROUP });
         shot = { mesh, body, life: 0 };
         body.addEventListener('collide', (e) => this.onImpact?.(shot, e.body.userData?.surface));
         this.list.push(shot);
@@ -341,6 +353,34 @@ export class Projectiles {
       shot.mesh.position.copy(shot.body.position);
       if (shot.life <= 0) this.retire(shot);
     }
+  }
+
+  // Kaldes før fysiktrinnet med dets længde.
+  sweep(dt) {
+    for (const shot of this.list) if (shot.life > 0) this.push(shot, dt);
+  }
+
+  push(shot, dt) {
+    const p = shot.body.position;
+    p.addScaledVector(dt * 1.5, shot.body.velocity, _to);
+    _rayResult.reset();
+    if (!this.world.raycastClosest(p, _to, _rayOptions, _rayResult)) return;
+    const item = _rayResult.body.userData?.item;
+    if (!item || item.heldBy || item.frozen) return;
+    const v = shot.body.velocity;
+    const n = _rayResult.hitNormalWorld;
+    const b = item.body;
+    b.wakeUp();
+    item.still = 0;
+    v.scale(shot.body.mass * SHOT_PUSH, _impulse);
+    _impulse.y += 0.35 * _impulse.length(); // et lille hop, så tingen ikke bare bremses af bordet
+    _rayResult.hitPointWorld.vsub(b.position, _point);
+    b.applyImpulse(_impulse, _point);
+    // Skuddet preller af og lægges lige uden for tingen.
+    v.vsub(n.scale(2 * v.dot(n), _point), v);
+    v.scale(0.3, v);
+    _rayResult.hitPointWorld.addScaledVector(0.02, n, shot.body.position);
+    this.onImpact?.(shot, b.userData?.surface ?? item.kind, item);
   }
 
   retire(shot) {

@@ -61,6 +61,7 @@ export class Robot {
       blending: THREE.AdditiveBlending, depthWrite: false,
     }));
     bulbGlow.scale.setScalar(0.12);
+    bulbGlow.raycast = () => {}; // gløden kan ikke rammes (fx af stemplet)
     bulb.add(bulbGlow);
 
     const body = new THREE.Group();
@@ -138,6 +139,10 @@ export class Robot {
   }
 
   reset() {
+    this.base = HOME.clone(); // hvor robotten svæver (HOME, på vej til noget eller ved siden af gæsten)
+    this.trip = null;
+    this.followSpot = null;
+    this.followLook = null;
     this.mode = 'idle'; // idle | wave | highfive
     this.modeUntil = 0;
     this.expression = 'idle';
@@ -150,6 +155,22 @@ export class Robot {
     this.slotFlash = 0;
     this.nextBlink = 2;
     this.faceKey = '';
+  }
+
+  // Flyv hen til spot, kig på look, kald onFix midt i arbejdet og flyv tilbage.
+  goFix(spot, look, onFix) {
+    this.trip = { spot: spot.clone(), look: look.clone(), onFix, phase: 'out', t: 0 };
+  }
+
+  // Svæv ved spot og kig mod look, så længe det kaldes. follow(null) sender robotten hjem.
+  follow(spot, look) {
+    this.followSpot = spot ? (this.followSpot ?? new THREE.Vector3()).copy(spot) : null;
+    this.followLook = look ? (this.followLook ?? new THREE.Vector3()).copy(look) : null;
+  }
+
+  // Robotten er ikke ved bordet (på vej et sted hen, retter noget eller er med på et billede).
+  get away() {
+    return this.trip !== null || this.followSpot !== null || this.base.distanceTo(HOME) > 0.05;
   }
 
   express(name, seconds, time) {
@@ -204,19 +225,48 @@ export class Robot {
     if (time > this.modeUntil) this.mode = 'idle';
     if (time > this.expressionUntil) this.expression = 'idle';
 
+    // Hvor robotten skal hen: en opgave, ved siden af gæsten eller hjem til bordet.
+    let goal = this.followSpot ?? HOME;
+    let look = this.followLook ?? viewerLocal;
+    const trip = this.trip;
+    if (trip) {
+      trip.t += dt;
+      if (trip.phase === 'out') {
+        goal = trip.spot;
+        look = trip.look;
+        if (this.base.distanceTo(goal) < 0.03) Object.assign(trip, { phase: 'fix', t: 0 });
+      } else if (trip.phase === 'fix') {
+        goal = trip.spot;
+        look = trip.look;
+        if (trip.t > 0.7 && trip.onFix) {
+          trip.onFix();
+          trip.onFix = null;
+        }
+        if (trip.t > 1.6) {
+          trip.phase = 'back';
+          this.express('happy', 1.5, time);
+        }
+      } else if (this.base.distanceTo(HOME) < 0.03) {
+        this.trip = null;
+      }
+    }
+    const toGoal = this.tmp.subVectors(goal, this.base);
+    const step = Math.min(toGoal.length() * Math.min(1, dt * 3), 2.2 * dt);
+    if (toGoal.lengthSq() > 1e-8) this.base.addScaledVector(toGoal.normalize(), step);
+
     // Fjeder tilbage efter et slag.
     this.recoilVelocity.addScaledVector(this.recoil, -40 * dt).multiplyScalar(Math.max(0, 1 - 6 * dt));
     this.recoil.addScaledVector(this.recoilVelocity, dt);
-    this.group.position.copy(HOME).add(this.recoil);
+    this.group.position.copy(this.base).add(this.recoil);
     this.group.position.y += Math.sin(time * 1.6) * 0.02;
     this.shadow.position.x = this.group.position.x;
     this.shadow.position.z = this.group.position.z;
 
-    // Hovedet følger gæsten.
+    // Hovedet følger gæsten (eller det, robotten er i gang med).
     this.headPosition(this.tmp);
-    const dx = viewerLocal.x - this.tmp.x;
-    const dy = viewerLocal.y - this.tmp.y;
-    const dz = viewerLocal.z - this.tmp.z;
+    const dx = look.x - this.tmp.x;
+    const dy = look.y - this.tmp.y;
+    const dz = look.z - this.tmp.z;
     const yaw = Math.atan2(dx, dz);
     const pitch = THREE.MathUtils.clamp(-Math.atan2(dy, Math.hypot(dx, dz)), -0.5, 0.5);
     const k = Math.min(1, dt * 4);
@@ -233,7 +283,10 @@ export class Robot {
       const target = this.tmp.copy(hand.userData.rest);
       target.y += Math.sin(time * 2 + i * 2) * 0.012;
       let rotZ = 0;
-      if (i === 1 && this.mode === 'wave') {
+      if (this.trip?.phase === 'fix') {
+        // Begge hænder frem og arbejde.
+        target.set((i ? 1 : -1) * 0.1, -0.05 + Math.sin(time * 18 + i * 3) * 0.02, 0.17);
+      } else if (i === 1 && this.mode === 'wave') {
         target.set(0.24, 0.06, 0.06);
         rotZ = Math.sin(time * 10) * 0.5;
       } else if (i === 1 && this.mode === 'highfive') {

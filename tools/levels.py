@@ -19,6 +19,7 @@ TARGETS = [
     (r'^robot/servo', -34),
     (r'^robot/hover-loop', -36),
     (r'^robot/talk-blip', -30),
+    (r'^robot/fly', -32),
     (r'^robot/', -26),
     (r'^ui/type-tick', -36),
     (r'^ui/panel-open', -32),
@@ -36,6 +37,13 @@ TARGETS = [
     (r'^butterflies/', -31),
     (r'^coffee/steam', -38),
     (r'^coffee/', -32),
+    (r'^camera/develop', -33),
+    (r'^camera/', -28),
+    (r'^stamp/', -27),
+    (r'^paper/plane', -31),
+    (r'^paper/', -29),
+    (r'^props/neon', -31),
+    (r'^props/', -28),
     (r'.', -30),
 ]
 MIN_GAIN, MAX_GAIN = 0.03, 4.0  # meget stille optagelser forstærkes højst 12 dB

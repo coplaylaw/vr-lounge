@@ -115,6 +115,61 @@ const TEXT = {
       title: 'Tak fordi du legede med',
       body: 'Du kan blive ved så længe du vil, eller tage brillerne af. Vi ses om lidt!',
     },
+
+    // Bonusdisketter, som robotten deler ud på én gang, når gæsten har prøvet alle de første.
+    // item: camera | stamp | plane | paperballs
+    BONUS_TOPICS: [
+      {
+        label: 'Smil!',
+        color: CVI.navy,
+        item: 'camera',
+        title: 'Et minde fra CO:PLAY',
+        body: 'Vi kan godt lide at mødes, også når det er virtuelt. Lad os tage et billede sammen.',
+        play: { title: 'Sig cheese', body: 'Grib kameraet og tryk på den anden knap, eller den røde knap ovenpå. Vend det mod dig selv, så kommer jeg med på billedet.' },
+      },
+      {
+        label: 'Godkendt',
+        color: CVI.orange,
+        item: 'stamp',
+        title: 'Jura i praksis',
+        body: 'Meget af vores arbejde handler om aftaler, der skal på plads. Her er en, du selv kan godkende.',
+        play: { title: 'Stempl den', body: 'Tag stemplet og tryk det ned på aftalen. Det virker også på bordet. Og på mig.' },
+      },
+      {
+        label: 'Papirfly',
+        color: CVI.cyan,
+        item: 'plane',
+        title: 'Lad papiret flyve',
+        body: 'Hos os er papirarbejdet blevet digitalt. Så kan det gamle papir lige så godt komme ud at flyve.',
+        play: { title: 'Kast blødt', body: 'Hold flyet med næsen fremad og giv slip med et roligt kast. Kan du ramme mig?' },
+      },
+      {
+        label: 'Papirkurv',
+        color: CVI.sand,
+        item: 'paperballs',
+        title: 'Ryd skrivebordet',
+        body: 'Bunker af papir hører fortiden til. Hjælp mig med at rydde op.',
+        play: { title: 'Den står bag dig', body: 'Vend dig om. Skraldespanden står bag dig. Hvor mange papirkugler kan du ramme?' },
+      },
+    ],
+
+    BONUS: {
+      title: 'Bonusdisketter!',
+      body: 'Du har prøvet dem alle. Her er fire mere, og du bestemmer selv rækkefølgen.',
+    },
+
+    // Robottens replikker, når der sker noget med tingene.
+    EVENTS: {
+      painting: { title: 'Hov!', body: 'Nu hænger elgen skævt. Jeg retter den lige.' },
+      vase: { title: 'Ups!', body: 'Vasen væltede. Et øjeblik, så rejser jeg den op igen.' },
+      'lamp-off': { title: 'Hyggebelysning', body: 'Peg på lampen og tryk igen, så tænder den.' },
+      headset: { title: 'VR i VR', body: 'Nu ser du dig selv gennem mit kamera. Vink til mig!' },
+      photo: { title: 'Smukt!', body: 'Tag billedet, der kommer ud af kameraet, og se det fremkalde.' },
+      contract: { title: 'Aftalen er i hus', body: 'Stemplet og godkendt. Så hurtigt kan jura også gå.' },
+      'stamp-robot': { title: 'Godkendt?', body: 'Tak, tror jeg. Nu er jeg officielt godkendt.' },
+      bin: { title: 'Kurv!', body: 'Flot skud. Kan du gøre det igen?' },
+      'bin-five': { title: 'Ryddet!', body: 'Fem kurve! Skrivebordet har aldrig været så pænt.' },
+    },
   },
 
   en: {
@@ -206,6 +261,58 @@ const TEXT = {
       title: 'Thanks for playing',
       body: 'You can keep going as long as you like, or take off the headset. See you soon!',
     },
+
+    BONUS_TOPICS: [
+      {
+        label: 'Smile!',
+        color: CVI.navy,
+        item: 'camera',
+        title: 'A souvenir from CO:PLAY',
+        body: 'We like meeting people, even when it is virtual. Let us take a picture together.',
+        play: { title: 'Say cheese', body: 'Grab the camera and press the other button, or the red button on top. Turn it towards yourself, and I will join you in the picture.' },
+      },
+      {
+        label: 'Approved',
+        color: CVI.orange,
+        item: 'stamp',
+        title: 'Law in practice',
+        body: 'Much of our work is about getting agreements in place. Here is one you can approve yourself.',
+        play: { title: 'Stamp it', body: 'Take the stamp and press it down on the agreement. It works on the table too. And on me.' },
+      },
+      {
+        label: 'Paper plane',
+        color: CVI.cyan,
+        item: 'plane',
+        title: 'Let the paper fly',
+        body: 'Our paperwork has gone digital. So the old paper might as well go flying.',
+        play: { title: 'Throw gently', body: 'Hold the plane nose first and let go with a calm throw. Can you hit me?' },
+      },
+      {
+        label: 'Waste basket',
+        color: CVI.sand,
+        item: 'paperballs',
+        title: 'Clear the desk',
+        body: 'Piles of paper are a thing of the past. Help me tidy up.',
+        play: { title: 'It is behind you', body: 'Turn around. The waste basket is right behind you. How many paper balls can you get in?' },
+      },
+    ],
+
+    BONUS: {
+      title: 'Bonus disks!',
+      body: 'You have tried them all. Here are four more, and you choose the order.',
+    },
+
+    EVENTS: {
+      painting: { title: 'Oops!', body: 'Now the moose is hanging crooked. Let me fix that.' },
+      vase: { title: 'Whoops!', body: 'The vase fell over. One moment, I will stand it back up.' },
+      'lamp-off': { title: 'Mood lighting', body: 'Point at the lamp and press again to switch it back on.' },
+      headset: { title: 'VR in VR', body: 'Now you see yourself through my camera. Wave at me!' },
+      photo: { title: 'Lovely!', body: 'Take the picture coming out of the camera and watch it develop.' },
+      contract: { title: 'It is a deal', body: 'Stamped and approved. Law can be that quick too.' },
+      'stamp-robot': { title: 'Approved?', body: 'Thanks, I think. Now I am officially approved.' },
+      bin: { title: 'Score!', body: 'Nice shot. Can you do it again?' },
+      'bin-five': { title: 'All clear!', body: 'Five baskets! The desk has never looked this tidy.' },
+    },
   },
 };
 
@@ -220,9 +327,14 @@ export let TOPICS;
 export let HIT_LINES;
 export let HINTS;
 export let OUTRO;
+export let BONUS_TOPICS;
+export let BONUS;
+export let EVENTS;
 
 export function setLanguage(id) {
-  ({ SIGN, INTRO, HIGH_FIVE, HIGH_FIVE_DONE, DISK_HINT, NEXT_DISK, TOPICS, HIT_LINES, HINTS, OUTRO } = TEXT[id] ?? TEXT.da);
+  ({
+    SIGN, INTRO, HIGH_FIVE, HIGH_FIVE_DONE, DISK_HINT, NEXT_DISK, TOPICS, HIT_LINES, HINTS, OUTRO, BONUS_TOPICS, BONUS, EVENTS,
+  } = TEXT[id] ?? TEXT.da);
 }
 
 setLanguage('da');
@@ -232,6 +344,7 @@ setLanguage('da');
 const VOICE_NAMES = {
   INTRO: 'intro', HIGH_FIVE: 'highfive', HIGH_FIVE_DONE: 'highfive-done', DISK_HINT: 'disk-hint',
   NEXT_DISK: 'next-disk', TOPICS: 'topic', HIT_LINES: 'hit', HINTS: 'hint', OUTRO: 'outro',
+  BONUS_TOPICS: 'bonus', BONUS: 'bonus-intro',
 };
 export const VOICE_LINES = []; // { voice, lang, text } til generatoren
 for (const [lang, text] of Object.entries(TEXT)) {
@@ -248,6 +361,7 @@ for (const [lang, text] of Object.entries(TEXT)) {
       if (line.play) add(line.play, `${lineName}-play`);
     });
   }
+  for (const [key, line] of Object.entries(text.EVENTS)) add(line, `event-${key}`);
 }
 
 // Alle indtalte replikker på begge sprog, så de kan hentes på forhånd.

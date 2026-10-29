@@ -60,7 +60,11 @@ export class Reveal {
     if (this.patched.has(material)) return;
     this.patched.add(material);
     const uniforms = this.uniforms;
-    material.onBeforeCompile = (shader) => {
+    // Materialet kan have sin egen udvidelse i forvejen (fx lampens lys i bake.js), som køres først.
+    const previous = material.onBeforeCompile;
+    const previousKey = material.customProgramCacheKey.bind(material);
+    material.onBeforeCompile = (shader, renderer) => {
+      previous.call(material, shader, renderer);
       Object.assign(shader.uniforms, uniforms);
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec3 vRevealPos;')
@@ -96,7 +100,7 @@ export class Reveal {
             gl_FragColor.rgb = mix(gl_FragColor.rgb, uRevealColor * 1.4, 0.75);
           }`);
     };
-    material.customProgramCacheKey = () => 'reveal';
+    material.customProgramCacheKey = () => `${previousKey()}|reveal`;
     material.needsUpdate = true;
   }
 

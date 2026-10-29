@@ -1,9 +1,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { CANNON } from './physics.js';
 import { CVI } from './palette.js';
-import { LightBaker, bakedMaterial } from './bake.js';
+import { LightBaker, bakedMaterial, withSwitchedLight } from './bake.js';
 import { DESK, DESK_TOP, PRINTER } from './desk.js';
 import {
   seededRandom, windowTexture, logoNeonTexture, clockFaceTexture, glowTexture, hologramMaterial, beamMaterial,
@@ -67,12 +66,13 @@ export function buildWorld(stage, physics) {
   stage.add(key);
 
   physics.addRoom(ROOM);
-  buildRoom(stage, physics, glowTex, animated);
+  const props = buildRoom(stage, physics, glowTex, animated);
   const trainCars = buildCity(stage, animated, holoMaterials);
   buildSky(stage);
 
   return {
     trainCars, // svævetogets vogne, til lyden når toget kører forbi
+    props, // de ting i rummet, der reagerer på at blive ramt (se props.js)
     update(time, dt) {
       for (const m of holoMaterials) m.uniforms.uTime.value = time;
       for (const fn of animated) fn(time, dt);
@@ -179,6 +179,7 @@ function buildRoom(stage, physics, glowTex, animated) {
   neon.position.set(minX + 0.03, 2.15, -1.0);
   neon.rotation.y = Math.PI / 2;
   room.add(neon);
+  physics.addStatic(new CANNON.Box(new CANNON.Vec3(0.04, 0.3, 1.25)), { x: minX + 0.04, y: 2.15, z: -1.0 }, null, 'neon');
 
   // --- Gulv og loft ---
 
@@ -265,25 +266,29 @@ function buildRoom(stage, physics, glowTex, animated) {
   physics.addBox(new THREE.Vector3(width - 0.4, 0.48, benchD), { x: 0, y: 0.24, z: minZ + benchD / 2 });
   light.box([minX + 0.2, 0.42, minZ], [maxX - 0.2, 0.48, minZ + benchD]);
 
-  const headsetBody = new RoundedBoxGeometry(0.19, 0.11, 0.1, 3, 0.03);
-  const headsetFace = new RoundedBoxGeometry(0.17, 0.09, 0.02, 2, 0.01);
+  // Selve headsettene kan gribes og bygges i props.js. Her står kun holderne.
+  const headsetSpots = [];
   for (const x of [-1.85, -1.2]) {
     const base = at(x, 0.48, minZ + 0.2);
     const part = (geo, mat, m) => kit.add(geo, mat, base.clone().multiply(m));
     part(new THREE.CylinderGeometry(0.06, 0.07, 0.015, 20), M.trim, at(0, 0.0075, 0));
     part(new THREE.CylinderGeometry(0.012, 0.012, 0.14, 8), M.trim, at(0, 0.07, 0));
-    part(headsetBody, M.trim, at(0, 0.19, 0.01));
-    part(headsetFace, M.blackMatte, at(0, 0.19, 0.06));
-    part(new THREE.TorusGeometry(0.09, 0.012, 6, 24, Math.PI), M.blackMatte, at(0, 0.2, -0.04, 0, -Math.PI / 2));
+    physics.addBox(new THREE.Vector3(0.08, 0.01, 0.06), { x, y: 0.48 + 0.135, z: minZ + 0.2 });
+    headsetSpots.push(new THREE.Vector3(x, 0.48 + 0.14 + 0.055, minZ + 0.21));
   }
 
   // Elgmaleriet mellem vinduerne.
-  const painting = new THREE.Mesh(
+  // Det hænger i et søm over midten, så det kan svinge og komme til at hænge skævt.
+  const painting = new THREE.Group();
+  painting.position.set(-1.5, 2.6, minZ + 0.03);
+  room.add(painting);
+  const canvas = new THREE.Mesh(
     new THREE.BoxGeometry(1.0, 1.5, 0.04),
     [M.trim, M.trim, M.trim, M.trim, new THREE.MeshLambertMaterial({ map: paintingTexture() }), M.trim],
   );
-  painting.position.set(-1.5, 1.8, minZ + 0.03);
-  room.add(painting);
+  canvas.position.y = -0.8;
+  painting.add(canvas);
+  physics.addStatic(new CANNON.Box(new CANNON.Vec3(0.5, 0.75, 0.03)), { x: -1.5, y: 1.8, z: minZ + 0.04 }, null, 'painting');
 
   // Receptionsskranken i navy med "CO:" og lysende firkanter på forsiden.
   const desk = { x: 3.2, z: -1.5, w: 0.7, h: 1.08, l: 2.2 };
@@ -299,17 +304,23 @@ function buildRoom(stage, physics, glowTex, animated) {
   physics.addBox(new THREE.Vector3(desk.w, desk.h, desk.l), { x: desk.x, y: desk.h / 2, z: desk.z });
   light.box([desk.x - desk.w / 2, 0, desk.z - desk.l / 2], [desk.x + desk.w / 2, desk.h, desk.z + desk.l / 2]);
   // Vase med hvide blomster og et par lys på skranken.
-  const vase = new THREE.LatheGeometry([
+  // Vasen er sin egen gruppe med origo midt i bunden, så den kan vælte.
+  const vase = new THREE.Group();
+  vase.position.set(desk.x, desk.h, desk.z - 0.75);
+  room.add(vase);
+  vase.add(new THREE.Mesh(new THREE.LatheGeometry([
     new THREE.Vector2(0.05, 0), new THREE.Vector2(0.11, 0.06), new THREE.Vector2(0.12, 0.14),
     new THREE.Vector2(0.08, 0.24), new THREE.Vector2(0.06, 0.28),
-  ], 20);
-  kit.add(vase, M.wall, at(desk.x, desk.h, desk.z - 0.75));
+  ], 20), M.wall));
   const bloom = new THREE.IcosahedronGeometry(0.06, 1);
+  const blooms = [];
   const rnd = seededRandom(31);
   for (let i = 0; i < 9; i++) {
     const a = (i / 9) * Math.PI * 2;
-    kit.add(bloom, M.trim, at(desk.x + Math.cos(a) * 0.1 * rnd(), desk.h + 0.36 + rnd() * 0.12, desk.z - 0.75 + Math.sin(a) * 0.12));
+    blooms.push(bloom.clone().translate(Math.cos(a) * 0.1 * rnd(), 0.36 + rnd() * 0.12, Math.sin(a) * 0.12));
   }
+  vase.add(new THREE.Mesh(mergeGeometries(blooms), M.trim));
+  physics.addStatic(new CANNON.Cylinder(0.12, 0.12, 0.45, 10), { x: desk.x, y: desk.h + 0.23, z: desk.z - 0.75 }, null, 'vase');
   for (const [dz, h] of [[0.6, 0.18], [0.68, 0.12]]) {
     kit.add(new THREE.CylinderGeometry(0.035, 0.035, h, 16), M.trim, at(desk.x, desk.h + h / 2, desk.z + dz));
     kit.add(new THREE.SphereGeometry(0.012, 8, 6), M.warm, at(desk.x, desk.h + h + 0.012, desk.z + dz));
@@ -344,11 +355,31 @@ function buildRoom(stage, physics, glowTex, animated) {
   const lamp = { x: 1.5, z: -3.45 };
   kit.add(new THREE.CylinderGeometry(0.16, 0.16, 0.025, 24), M.blackMatte, at(lamp.x, 0.0125, lamp.z));
   kit.add(new THREE.CylinderGeometry(0.012, 0.012, 1.7, 8), M.blackMatte, at(lamp.x, 0.85, lamp.z));
-  kit.add(new THREE.CylinderGeometry(0.28, 0.32, 0.3, 32, 1, true), new THREE.MeshLambertMaterial({ color: 0x1b1c1f, side: THREE.DoubleSide }), at(lamp.x, 1.75, lamp.z));
-  kit.add(new THREE.CircleGeometry(0.3, 32), M.warm, at(lamp.x, 1.61, lamp.z, 0, Math.PI / 2));
+  const shade = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.28, 0.32, 0.3, 32, 1, true),
+    new THREE.MeshLambertMaterial({ color: 0x1b1c1f, side: THREE.DoubleSide }),
+  );
+  shade.position.set(lamp.x, 1.75, lamp.z);
+  room.add(shade);
+  // Lampen kan tændes og slukkes, så dens lys bages for sig (gruppen 'lamp').
+  const lampBulb = new THREE.Mesh(new THREE.CircleGeometry(0.3, 32), new THREE.MeshBasicMaterial({ color: 0xfff1d6 }));
+  lampBulb.position.set(lamp.x, 1.61, lamp.z);
+  lampBulb.rotation.x = Math.PI / 2;
+  room.add(lampBulb);
+  // Snoren, man trækker i.
+  const cord = new THREE.Group();
+  cord.position.set(lamp.x + 0.2, 1.62, lamp.z + 0.12);
+  room.add(cord);
+  const cordLine = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.3, 6), M.blackMatte);
+  cordLine.position.y = -0.15;
+  cord.add(cordLine);
+  const cordKnob = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8), new THREE.MeshLambertMaterial({ color: CVI.orange }));
+  cordKnob.position.y = -0.31;
+  cord.add(cordKnob);
+  physics.addStatic(new CANNON.Cylinder(0.3, 0.32, 0.32, 12), { x: lamp.x, y: 1.75, z: lamp.z }, null, 'lamp');
   light.cylinder(lamp.x, lamp.z, 0.3, 1.6, 1.9);
-  light.light([lamp.x, 1.58, lamp.z], 0xffc98a, 0.7, { cutoff: 0.15, power: 1 });
-  light.light([lamp.x, 1.92, lamp.z], 0xffc98a, 0.6, { dir: [0, 1, 0], cutoff: 0.3, power: 1 });
+  light.light([lamp.x, 1.58, lamp.z], 0xffc98a, 0.7, { cutoff: 0.15, power: 1, group: 'lamp' });
+  light.light([lamp.x, 1.92, lamp.z], 0xffc98a, 0.6, { dir: [0, 1, 0], cutoff: 0.3, power: 1, group: 'lamp' });
   const lampGlow = new THREE.Sprite(new THREE.SpriteMaterial({
     map: glowTex, color: 0xffe2b0, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false,
   }));
@@ -427,7 +458,13 @@ function buildRoom(stage, physics, glowTex, animated) {
   light.box([PRINTER.x - 0.14, DESK_TOP, PRINTER.z - 0.13], [PRINTER.x + 0.14, DESK_TOP + 0.2, PRINTER.z + 0.13]);
 
   kit.build(room);
-  bakeRoom(light, { floorMat, rugMat, RUG, ceilingMat, frontWallMat, rightWallMat, rightLength, rightMid, leftWallMat });
+  const lampLevel = { value: 1 };
+  bakeRoom(light, { floorMat, rugMat, RUG, ceilingMat, frontWallMat, rightWallMat, rightLength, rightMid, leftWallMat }, lampLevel);
+
+  return {
+    painting, vase, neon, headsetSpots,
+    lamp: { level: lampLevel, bulb: lampBulb, glow: lampGlow, cord, shade },
+  };
 }
 
 const put = (p, x, y, z) => {
@@ -437,8 +474,16 @@ const put = (p, x, y, z) => {
 };
 
 // Regner lyset ud på gulv, tæppe, loft og de tre vægge.
-function bakeRoom(light, m) {
+// Lampens lys bages for sig på de flader, det når, og lægges oven i med lampLevel (0..1).
+function bakeRoom(light, m, lampLevel) {
   const { minX, maxX, minZ, maxZ, height: H } = ROOM;
+  const lamp = (mat, spec) => {
+    const map = light.bake({ ...spec, group: 'lamp' });
+    map.repeat.copy(mat.lightMap.repeat);
+    map.offset.copy(mat.lightMap.offset);
+    withSwitchedLight(mat, map, lampLevel);
+    return map;
+  };
   const width = maxX - minX;
   const depth = maxZ - minZ;
   const fullDepth = depth;
@@ -446,28 +491,36 @@ function bakeRoom(light, m) {
   const edge = (d, strength = 0.4, reach = 0.25) => 1 - strength * Math.exp(-Math.max(d, 0) / reach);
   const sideWalls = (x) => edge(x - minX) * edge(maxX - x);
 
-  m.floorMat.lightMap = light.bake({
+  const floorSpec = {
     width: 192,
     height: 200,
     normal: [0, 1, 0],
     ambient: new THREE.Color(0.14, 0.135, 0.13),
     point: (u, v, p) => put(p, minX + u * width, 0, minZ + (1 - v) * fullDepth),
     ao: (x, y, z) => sideWalls(x) * edge(z - minZ) * edge(maxZ - z),
-  });
+  };
+  m.floorMat.lightMap = light.bake(floorSpec);
+  const floorLamp = lamp(m.floorMat, floorSpec);
   // Tæppet bruger gulvets lightmap, flyttet og skaleret til tæppets egne uv'er.
   const rugMap = m.floorMat.lightMap.clone();
   rugMap.repeat.set(m.RUG.w / width, m.RUG.d / fullDepth);
   rugMap.offset.set((m.RUG.x - m.RUG.w / 2 - minX) / width, 1 - (m.RUG.z + m.RUG.d / 2 - minZ) / fullDepth);
   m.rugMat.lightMap = rugMap;
+  const rugLamp = floorLamp.clone();
+  rugLamp.repeat.copy(rugMap.repeat);
+  rugLamp.offset.copy(rugMap.offset);
+  withSwitchedLight(m.rugMat, rugLamp, lampLevel);
 
-  m.ceilingMat.lightMap = light.bake({
+  const ceilingSpec = {
     width: 128,
     height: 128,
     normal: [0, -1, 0],
     ambient: new THREE.Color(0.38, 0.38, 0.39),
     point: (u, v, p) => put(p, minX + u * width, H, minZ + v * fullDepth),
     ao: (x, y, z) => sideWalls(x) * edge(z - minZ) * edge(maxZ - z),
-  });
+  };
+  m.ceilingMat.lightMap = light.bake(ceilingSpec);
+  lamp(m.ceilingMat, ceilingSpec);
 
   // Vinduesvæggenes uv'er er i meter (fra ExtrudeGeometry), så lightmappet strækkes over hele væggen.
   const wallMap = (tex, length) => {
@@ -478,14 +531,16 @@ function bakeRoom(light, m) {
   const wallAmbient = new THREE.Color(0.24, 0.235, 0.23);
   const wallAO = (s, y, s0, s1) => edge(y, 0.35) * edge(H - y, 0.3) * edge(s - s0) * edge(s1 - s);
 
-  m.frontWallMat.lightMap = wallMap(light.bake({
+  const frontSpec = {
     width: 256,
     height: 96,
     normal: [0, 0, 1],
     ambient: wallAmbient,
     point: (u, v, p) => put(p, (u - 0.5) * width, v * H, minZ),
     ao: (x, y) => wallAO(x, y, minX, maxX),
-  }), width);
+  };
+  m.frontWallMat.lightMap = wallMap(light.bake(frontSpec), width);
+  lamp(m.frontWallMat, frontSpec);
 
   m.rightWallMat.lightMap = wallMap(light.bake({
     width: 256,
@@ -497,14 +552,16 @@ function bakeRoom(light, m) {
   }), m.rightLength);
 
   // Den spartlede væg er et almindeligt plan: u går fra glasvæggen (u = 0) mod vinduerne.
-  m.leftWallMat.lightMap = light.bake({
+  const leftSpec = {
     width: 192,
     height: 80,
     normal: [1, 0, 0],
     ambient: wallAmbient,
     point: (u, v, p) => put(p, minX, v * H, maxZ - u * depth),
     ao: (x, y, z) => wallAO(z, y, minZ, maxZ),
-  });
+  };
+  m.leftWallMat.lightMap = light.bake(leftSpec);
+  lamp(m.leftWallMat, leftSpec);
 }
 
 // Uret viser den rigtige tid. Sekundviseren er i CO:PLAY-orange.

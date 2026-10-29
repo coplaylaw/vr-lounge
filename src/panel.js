@@ -98,9 +98,10 @@ export class SpeechPanel {
     g.fillStyle = '#e8eef5';
     g.font = '40px "Segoe UI", Roboto, sans-serif';
     let left = chars;
+    const top = this.title ? 170 : 92; // uden overskrift rykker teksten op
     this.lines.forEach((line, i) => {
       if (left <= 0) return;
-      g.fillText(line.slice(0, left), PAD, 170 + i * 54);
+      g.fillText(line.slice(0, left), PAD, top + i * 54);
       left -= line.length;
     });
 

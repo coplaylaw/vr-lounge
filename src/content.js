@@ -50,13 +50,13 @@ const TEXT = {
     },
 
     DISK_HINT: {
-      title: 'Tag disketten',
+      title: '',
       body: 'Grib disketten på bordet med knappen på siden af controlleren, eller knib fingrene sammen. Stik den så ind i maskinen til højre.',
     },
 
     NEXT_DISK: {
-      title: 'Én til?',
-      body: 'Her er en diskette mere. Sæt den i maskinen og se, hvad den laver.',
+      title: '',
+      body: 'Her er en diskette mere. Sæt den i maskinen og se, hvad der sker.',
     },
 
     // En diskette pr. emne. Maskinen printer en ting, når disketten sættes i.
@@ -66,54 +66,54 @@ const TEXT = {
         label: 'Hvem er vi?',
         color: CVI.cyan,
         item: 'blocks',
-        title: 'Hvem er vi?',
+        title: '',
         body: 'CO:PLAY er et advokatfirma, der kombinerer juridisk rådgivning med teknologi.',
-        play: { title: 'Byg løs', body: 'Kan du stable klodserne, så der står CO:PLAY? Du må også gerne kaste dem efter mig.' },
+        play: { title: '', body: 'Kan du stable klodserne, så der står CO:PLAY? Du må også gerne kaste dem efter mig.' },
       },
       {
         label: 'Jura + tech',
         color: CVI.blue,
         item: 'blaster',
-        title: 'Jura møder teknologi',
+        title: '',
         body: 'Vi bygger selv de digitale værktøjer, vi arbejder med. Det rum, du sidder i, er også lavet her i huset.',
-        play: { title: 'Konfettikanon', body: 'Hold kanonen med knappen på siden, og skyd med aftrækkeren under pegefingeren. Sigt efter de lysende ringe.' },
+        play: { title: '', body: 'Hold pistolen med knappen på siden, og skyd med aftrækkeren. Sigt efter de lysende ringe.' },
       },
       {
-        label: 'Huset',
+        label: 'Parkering',
         color: CVI.orange,
         item: 'butterflies',
-        title: 'Et gammelt hus i en ny by',
-        body: 'Gamle mursten, varmt lys i vinduerne og en by i fuld fart udenfor. Sådan ser vi gerne os selv.',
-        play: { title: 'Hold hånden stille', body: 'Ræk hånden frem og hold den helt stille. Måske lander der en sommerfugl på den.' },
+        title: '',
+        body: 'Ankom du i bil? Så husk at få registreret din nummerplade i receptionen af hensyn til parkeringen.',
+        play: { title: '', body: 'Ræk hånden frem og hold den helt stille. Måske lander der en sommerfugl på den.' },
       },
       {
         label: 'Mens du venter',
         color: CVI.sand,
         item: 'coffee',
-        title: 'Mens du venter',
-        body: 'Din vært kommer og henter dig om lidt. Spørg gerne i receptionen, hvis du vil have kaffe eller vand.',
-        play: { title: 'Kaffe?', body: 'Her er en virtuel kop kaffe til at starte med. Den rigtige får du i receptionen.' },
+        title: '',
+        body: 'Tørstig? Der står kaffe og vand klar til dig i mødelokalet.',
+        play: { title: '', body: 'Indtil da kan du nyde denne virtuelle kop kaffe.' },
       },
     ],
 
     // Når gæsten rammer robotten med noget.
     HIT_LINES: [
       { title: 'Av!', body: 'Godt kast. Men jeg er altså lavet af plastik.' },
-      { title: 'Hov!', body: 'Det kildede. Prøv at ramme ringene i stedet.' },
+      { title: 'Hov!', body: 'Det kildede. Prøv at sigte efter noget andet end mig.' },
       { title: 'Fuldtræffer', body: 'Okay, okay. Du sigter godt.' },
     ],
 
     // Vises med mellemrum, hvis gæsten ikke rører noget.
     HINTS: [
-      { title: 'Prøv selv', body: 'Peg på en ting og hold knappen inde, så flyver den hen til dig.' },
-      { title: 'Kast den', body: 'Sving armen og giv slip for at kaste. Det er helt okay at ramme mig.' },
-      { title: 'Kig ud', body: 'Se ud ad vinduerne: svævetoget kører hele vejen rundt om huset.' },
+      { title: '', body: 'Sigt efter en ting og hold knappen inde, så flyver den hen til dig.' },
+      { title: '', body: 'Sving armen og giv slip for at kaste.' },
+      { title: '', body: 'Se ud ad vinduerne: svævetoget kører hele vejen rundt om huset.' },
     ],
 
     // Vises, når gæsten har prøvet alle disketterne.
     OUTRO: {
       title: 'Tak fordi du legede med',
-      body: 'Du kan blive ved så længe du vil, eller tage brillerne af. Vi ses om lidt!',
+      body: 'Du kan blive ved så længe du vil, eller tage brillerne af.',
     },
 
     // Bonusdisketter, som robotten deler ud på én gang, når gæsten har prøvet alle de første.
@@ -162,7 +162,7 @@ const TEXT = {
     EVENTS: {
       painting: { title: 'Hov!', body: 'Nu hænger elgen skævt. Jeg retter den lige.' },
       vase: { title: 'Ups!', body: 'Vasen væltede. Et øjeblik, så rejser jeg den op igen.' },
-      'lamp-off': { title: 'Hyggebelysning', body: 'Peg på lampen og tryk igen, så tænder den.' },
+      'lamp-off': { title: 'Hyggebelysning', body: 'Sigt efter lampen og tryk igen, så tænder den.' },
       headset: { title: 'VR i VR', body: 'Nu ser du dig selv gennem mit kamera. Vink til mig!' },
       photo: { title: 'Smukt!', body: 'Tag billedet, der kommer ud af kameraet, og se det fremkalde.' },
       contract: { title: 'Aftalen er i hus', body: 'Stemplet og godkendt. Så hurtigt kan jura også gå.' },
@@ -201,13 +201,13 @@ const TEXT = {
     },
 
     DISK_HINT: {
-      title: 'Take the disk',
+      title: '',
       body: 'Grab the disk on the table with the button on the side of the controller, or pinch your fingers together. Then push it into the machine on the right.',
     },
 
     NEXT_DISK: {
-      title: 'Another one?',
-      body: 'Here is another disk. Put it in the machine and see what it does.',
+      title: '',
+      body: 'Here is another disk. Put it in the machine and see what happens.',
     },
 
     TOPICS: [
@@ -215,51 +215,51 @@ const TEXT = {
         label: 'Who are we?',
         color: CVI.cyan,
         item: 'blocks',
-        title: 'Who are we?',
+        title: '',
         body: 'CO:PLAY is a law firm that combines legal advice with technology.',
-        play: { title: 'Build away', body: 'Can you stack the blocks so they spell CO:PLAY? You are also welcome to throw them at me.' },
+        play: { title: '', body: 'Can you stack the blocks so they spell CO:PLAY? You are also welcome to throw them at me.' },
       },
       {
         label: 'Law + tech',
         color: CVI.blue,
         item: 'blaster',
-        title: 'Law meets technology',
-        body: 'We build the digital tools we work with ourselves. The room you are sitting in was made here in house too.',
-        play: { title: 'Confetti cannon', body: 'Hold the cannon with the button on the side, and fire with the trigger under your index finger. Aim for the glowing rings.' },
+        title: '',
+        body: 'We build the digital tools we work with ourselves. The room you are sitting in was also built in-house.',
+        play: { title: '', body: 'Hold the gun with the button on the side, and fire with the trigger under your index finger. Aim for the glowing rings.' },
       },
       {
-        label: 'The house',
+        label: 'Parking',
         color: CVI.orange,
         item: 'butterflies',
-        title: 'An old house in a new city',
-        body: 'Old bricks, warm light in the windows and a city in full swing outside. That is how we like to see ourselves.',
-        play: { title: 'Hold your hand still', body: 'Reach out your hand and keep it completely still. Maybe a butterfly will land on it.' },
+        title: '',
+        body: 'Did you arrive by car? Then remember to have your licence plate registered at the reception for parking.',
+        play: { title: '', body: 'Reach out your hand and keep it completely still. Maybe a butterfly will land on it.' },
       },
       {
         label: 'While you wait',
         color: CVI.sand,
         item: 'coffee',
-        title: 'While you wait',
-        body: 'Your host will come and get you shortly. Just ask at the reception if you would like coffee or water.',
-        play: { title: 'Coffee?', body: 'Here is a virtual cup of coffee to start with. You get the real one at the reception.' },
+        title: '',
+        body: 'Thirsty? There is coffee and water waiting for you in the meeting room.',
+        play: { title: '', body: 'Until then, enjoy this virtual cup of coffee.' },
       },
     ],
 
     HIT_LINES: [
       { title: 'Ouch!', body: 'Nice throw. But I am made of plastic, you know.' },
-      { title: 'Hey!', body: 'That tickled. Try hitting the rings instead.' },
+      { title: 'Hey!', body: 'That tickled. Try aiming at something other than me.' },
       { title: 'Bullseye', body: 'Okay, okay. You have good aim.' },
     ],
 
     HINTS: [
-      { title: 'Try it', body: 'Point at something and hold the button, and it flies over to you.' },
-      { title: 'Throw it', body: 'Swing your arm and let go to throw. It is totally fine to hit me.' },
-      { title: 'Look outside', body: 'Look out the windows: the monorail goes all the way around the house.' },
+      { title: '', body: 'Point at something and hold the button, and it flies over to you.' },
+      { title: '', body: 'Swing your arm and let go to throw.' },
+      { title: '', body: 'Look out the windows: the monorail goes all the way around the house.' },
     ],
 
     OUTRO: {
       title: 'Thanks for playing',
-      body: 'You can keep going as long as you like, or take off the headset. See you soon!',
+      body: 'You can keep going as long as you like, or take off the headset.',
     },
 
     BONUS_TOPICS: [
@@ -350,8 +350,8 @@ export const VOICE_LINES = []; // { voice, lang, text } til generatoren
 for (const [lang, text] of Object.entries(TEXT)) {
   const add = (line, name) => {
     line.voice ??= `voice/${name}-${lang}`;
-    const title = /[.!?]$/.test(line.title) ? line.title : `${line.title}.`;
-    VOICE_LINES.push({ voice: line.voice, lang, text: `${title} ${line.body}` });
+    const title = !line.title || /[.!?]$/.test(line.title) ? line.title : `${line.title}.`;
+    VOICE_LINES.push({ voice: line.voice, lang, text: title ? `${title} ${line.body}` : line.body });
   };
   for (const [key, name] of Object.entries(VOICE_NAMES)) {
     const value = text[key];

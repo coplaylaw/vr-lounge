@@ -113,7 +113,7 @@ const TEXT = {
     // Vises, når gæsten har prøvet alle disketterne.
     OUTRO: {
       title: 'Tak fordi du legede med',
-      body: 'Du kan blive ved så længe du vil, eller tage brillerne af. Vi ses om lidt!',
+      body: 'Du kan blive ved så længe du vil, eller tage brillerne af.',
     },
 
     // Bonusdisketter, som robotten deler ud på én gang, når gæsten har prøvet alle de første.
@@ -162,7 +162,7 @@ const TEXT = {
     EVENTS: {
       painting: { title: 'Hov!', body: 'Nu hænger elgen skævt. Jeg retter den lige.' },
       vase: { title: 'Ups!', body: 'Vasen væltede. Et øjeblik, så rejser jeg den op igen.' },
-      'lamp-off': { title: 'Hyggebelysning', body: 'Peg på lampen og tryk igen, så tænder den.' },
+      'lamp-off': { title: 'Hyggebelysning', body: 'Sigt efter lampen og tryk igen, så tænder den.' },
       headset: { title: 'VR i VR', body: 'Nu ser du dig selv gennem mit kamera. Vink til mig!' },
       photo: { title: 'Smukt!', body: 'Tag billedet, der kommer ud af kameraet, og se det fremkalde.' },
       contract: { title: 'Aftalen er i hus', body: 'Stemplet og godkendt. Så hurtigt kan jura også gå.' },
@@ -259,7 +259,7 @@ const TEXT = {
 
     OUTRO: {
       title: 'Thanks for playing',
-      body: 'You can keep going as long as you like, or take off the headset. See you soon!',
+      body: 'You can keep going as long as you like, or take off the headset.',
     },
 
     BONUS_TOPICS: [

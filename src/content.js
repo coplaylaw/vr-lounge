@@ -79,7 +79,7 @@ const TEXT = {
         play: { title: '', body: 'Tag pistolen og sigt efter de lysende ringe. Den skyder af sig selv, så længe du holder den.' },
       },
       {
-        label: 'Huset',
+        label: 'Parkering',
         color: CVI.orange,
         item: 'butterflies',
         title: '',
@@ -228,7 +228,7 @@ const TEXT = {
         play: { title: '', body: 'Take the gun and aim at the glowing rings. It fires on its own as long as you hold it.' },
       },
       {
-        label: 'The house',
+        label: 'Parking',
         color: CVI.orange,
         item: 'butterflies',
         title: '',

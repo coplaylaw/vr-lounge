@@ -6,7 +6,7 @@ En kort VR-oplevelse til de to Quest 2-headset i receptionen, stærkt inspireret
 | --- | --- |
 | Hvem er vi? | Bogstavklodser, der staver CO:PLAY |
 | Jura + tech | Konfettikanon og fem skydeskiver rundt i rummet |
-| Huset | Sommerfugle, der lander på en hånd, der holdes stille |
+| Parkering | Sommerfugle, der lander på en hånd, der holdes stille |
 | Mens du venter | En kop kaffe med damp |
 
 Når gæsten har prøvet de fire, kaster robotten fire bonusdisketter på bordet på én gang, og gæsten vælger selv rækkefølgen:

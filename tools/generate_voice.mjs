@@ -12,8 +12,16 @@ const MODEL = 'eleven_v4';
 const KEY = process.env.ELEVENLABS_API_KEY;
 const root = new URL('../assets/audio/', import.meta.url);
 
-// Navnene udtales som ord, ikke som bogstaver og kolon.
-const spoken = (text) => text.replaceAll('CO:BOT', 'Co-Bot').replaceAll('CO:PLAY', 'Co-Play');
+// Navnene udtales som ord, ikke som bogstaver og kolon. Stemmen siger det bløde g i "tag" hårdt,
+// så på dansk skrives det, som det udtales.
+const PRONOUNCE = {
+  da: [[/\b([Tt])ag\b/g, "$1a'"]],
+  en: [],
+};
+const spoken = (text, lang) => PRONOUNCE[lang].reduce(
+  (t, [from, to]) => t.replace(from, to),
+  text.replaceAll('CO:BOT', 'Co-Bot').replaceAll('CO:PLAY', 'Co-Play'),
+);
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
@@ -28,7 +36,7 @@ for (const { voice, lang, text } of VOICE_LINES) {
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_128`, {
     method: 'POST',
     headers: { 'xi-api-key': KEY, 'content-type': 'application/json' },
-    body: JSON.stringify({ text: spoken(text), model_id: MODEL, language_code: lang }),
+    body: JSON.stringify({ text: spoken(text, lang), model_id: MODEL, language_code: lang }),
   });
   if (!res.ok) {
     failed++;

@@ -348,15 +348,22 @@ export function createPaperBall(physics, position, seed) {
   mesh.position.copy(position);
   const item = physics.add(mesh, new CANNON.Sphere(0.03), { mass: 0.015, kind: 'ball', radius: 0.045 });
   item.body.linearDamping = 0.12;
+  // En krøllet papirkugle ruller ikke ret langt: drejningen bremses hårdt, og den lægges til at sove,
+  // så snart den kun triller langsomt.
+  item.body.angularDamping = 0.9;
+  item.settle = { speed: 0.12, spin: 5 };
   return item;
 }
 
 export const BIN = new THREE.Vector3(0.3, 0, 1.5);
 const BIN_TOP = 0.4;
 const BIN_RADIUS = 0.17;
+const MOVE_TIME = 0.35; // sekunder om at skrumpe ind og igen om at dukke op det nye sted
 
 export class PaperBin {
   constructor(stage, physics, glowTex) {
+    this.physics = physics;
+    this.position = BIN.clone();
     this.group = new THREE.Group();
     this.group.position.copy(BIN);
     stage.add(this.group);
@@ -389,11 +396,12 @@ export class PaperBin {
       new THREE.PlaneGeometry(0.17, 0.085),
       new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false }),
     );
-    const toGuest = Math.atan2(-BIN.x, -BIN.z);
-    board.position.set(Math.sin(toGuest) * 0.16, 0.24, Math.cos(toGuest) * 0.16);
-    board.rotation.y = toGuest;
+    // Tavlen sidder i sin egen gruppe, som drejes mod gæsten, hver gang spanden flytter.
+    this.facing = new THREE.Group();
+    board.position.set(0, 0.24, 0.16);
     board.rotation.x = -0.12;
-    this.group.add(board);
+    this.facing.add(board);
+    this.group.add(this.facing);
 
     // Bund og en ring af tynde vægge, så tingene kan lande i spanden.
     const body = new CANNON.Body({ mass: 0, type: CANNON.Body.STATIC });
@@ -412,8 +420,10 @@ export class PaperBin {
         q.mult(tilt),
       );
     }
-    body.position.set(BIN.x, BIN.y, BIN.z);
     physics.world.addBody(body);
+    this.body = body;
+    this.move = null;
+    this.place(BIN);
 
     this.score = 0;
     this.flash = 0;
@@ -441,7 +451,8 @@ export class PaperBin {
   // Er en ting landet i spanden? Kun papirkugler giver point.
   inside(item) {
     const p = item.mesh.position;
-    return Math.hypot(p.x - BIN.x, p.z - BIN.z) < 0.14 && p.y < BIN_TOP - 0.02 && p.y > 0;
+    if (this.move) return false;
+    return Math.hypot(p.x - this.position.x, p.z - this.position.z) < 0.14 && p.y < BIN_TOP - 0.02 && p.y > 0;
   }
 
   addPoint() {
@@ -451,17 +462,69 @@ export class PaperBin {
   }
 
   get rimPosition() {
-    return BIN.clone().setY(BIN_TOP);
+    return this.position.clone().setY(BIN_TOP);
+  }
+
+  place(position) {
+    this.position.copy(position);
+    this.group.position.copy(position);
+    this.facing.rotation.y = Math.atan2(-position.x, -position.z);
+    this.body.position.set(position.x, position.y, position.z);
+    this.body.aabbNeedsUpdate = true;
+  }
+
+  // Et nyt sted på gulvet ved siden af eller bag gæsten, ikke for tæt på det gamle sted eller på ting på gulvet.
+  randomSpot() {
+    let best = null;
+    for (let i = 0; i < 12; i++) {
+      const a = Math.PI + (Math.random() - 0.5) * 2 * 1.9; // bagud ± 110 grader (0 er lige frem)
+      const r = 0.9 + Math.random() * 0.7;
+      const spot = new THREE.Vector3(Math.sin(a) * r, 0, -Math.cos(a) * r);
+      if (spot.distanceTo(this.position) < 0.6) continue;
+      let clear = true;
+      for (const item of this.physics.items) {
+        const p = item.mesh.position;
+        if (Math.hypot(p.x - spot.x, p.z - spot.z) < BIN_RADIUS + item.radius + 0.05 && p.y < BIN_TOP + 0.1) clear = false;
+      }
+      best = spot;
+      if (clear) break;
+    }
+    return best ?? BIN.clone();
+  }
+
+  // Spanden skrumper ind og dukker op et nyt sted. Kugler i den gamle spand falder ned på gulvet.
+  moveTo(position = this.randomSpot()) {
+    this.move = { to: position, t: 0 };
   }
 
   update(dt) {
     this.flash = Math.max(0, this.flash - dt * 1.5);
     this.rim.material.opacity = 0.6 + 0.4 * this.flash;
+    let scale = 1;
+    if (this.move) {
+      const m = this.move;
+      const before = m.t;
+      m.t += dt;
+      if (before < MOVE_TIME && m.t >= MOVE_TIME) {
+        const from = this.position.clone();
+        this.place(m.to);
+        this.physics.wakeNear(from, 0.4);
+        this.physics.wakeNear(m.to, 0.4);
+        this.flash = 1;
+      }
+      const k = Math.min(1, m.t / MOVE_TIME);
+      scale = m.t < MOVE_TIME ? 1 - k * k : Math.min(1, (m.t - MOVE_TIME) / MOVE_TIME);
+      if (m.t >= 2 * MOVE_TIME) this.move = null;
+    }
+    this.group.scale.setScalar(Math.max(0.001, scale));
     this.rim.scale.setScalar(1 + this.flash * 0.08);
   }
 
   reset() {
     this.score = 0;
     this.drawScore();
+    this.move = null;
+    this.group.scale.setScalar(1);
+    this.place(BIN);
   }
 }

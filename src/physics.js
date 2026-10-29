@@ -175,7 +175,8 @@ export class Physics {
     for (const item of this.items) {
       const b = item.body;
       if (!item.heldBy && !item.frozen && b.sleepState !== CANNON.Body.SLEEPING) {
-        const still = b.velocity.length() < SETTLE.speed && b.angularVelocity.length() < SETTLE.spin;
+        const settle = item.settle ?? SETTLE;
+        const still = b.velocity.length() < settle.speed && b.angularVelocity.length() < settle.spin;
         item.still = still ? item.still + dt : 0;
         if (item.still > SETTLE.after) b.sleep();
       }

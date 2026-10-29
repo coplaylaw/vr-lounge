@@ -50,7 +50,7 @@ const TEXT = {
     },
 
     DISK_HINT: {
-      title: 'Tag disketten',
+      title: '',
       body: 'Grib disketten på bordet med knappen på siden af controlleren, eller knib fingrene sammen. Stik den så ind i maskinen til højre.',
     },
 
@@ -201,7 +201,7 @@ const TEXT = {
     },
 
     DISK_HINT: {
-      title: 'Take the disk',
+      title: '',
       body: 'Grab the disk on the table with the button on the side of the controller, or pinch your fingers together. Then push it into the machine on the right.',
     },
 
@@ -350,8 +350,8 @@ export const VOICE_LINES = []; // { voice, lang, text } til generatoren
 for (const [lang, text] of Object.entries(TEXT)) {
   const add = (line, name) => {
     line.voice ??= `voice/${name}-${lang}`;
-    const title = /[.!?]$/.test(line.title) ? line.title : `${line.title}.`;
-    VOICE_LINES.push({ voice: line.voice, lang, text: `${title} ${line.body}` });
+    const title = !line.title || /[.!?]$/.test(line.title) ? line.title : `${line.title}.`;
+    VOICE_LINES.push({ voice: line.voice, lang, text: title ? `${title} ${line.body}` : line.body });
   };
   for (const [key, name] of Object.entries(VOICE_NAMES)) {
     const value = text[key];

@@ -105,7 +105,7 @@ const TEXT = {
 
     // Vises med mellemrum, hvis gæsten ikke rører noget.
     HINTS: [
-      { title: '', body: 'Peg på en ting og hold knappen inde, så flyver den hen til dig.' },
+      { title: '', body: 'Sigt efter en ting og hold knappen inde, så flyver den hen til dig.' },
       { title: '', body: 'Sving armen og giv slip for at kaste.' },
       { title: '', body: 'Se ud ad vinduerne: svævetoget kører hele vejen rundt om huset.' },
     ],

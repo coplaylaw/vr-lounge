@@ -12,10 +12,10 @@ const MODEL = 'eleven_v4';
 const KEY = process.env.ELEVENLABS_API_KEY;
 const root = new URL('../assets/audio/', import.meta.url);
 
-// Navnene udtales som ord, ikke som bogstaver og kolon. Stemmen udtaler nogle danske ord forkert
-// ("tag" med hårdt g, "peg" som "pik"), så de skrives, som de udtales.
+// Navnene udtales som ord, ikke som bogstaver og kolon. Stemmen siger det bløde g i "tag" hårdt,
+// så på dansk skrives det, som det udtales. (Undgå "peg": stemmen siger "pik", også stavet "paj".)
 const PRONOUNCE = {
-  da: [[/\b([Tt])ag\b/g, "$1a'"], [/\b([Pp])eg\b/g, '$1aj']],
+  da: [[/\b([Tt])ag\b/g, "$1a'"]],
   en: [],
 };
 const spoken = (text, lang) => PRONOUNCE[lang].reduce(

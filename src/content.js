@@ -82,9 +82,9 @@ const TEXT = {
         label: 'Huset',
         color: CVI.orange,
         item: 'butterflies',
-        title: 'Et gammelt hus i en ny by',
+        title: '',
         body: 'Gamle mursten, varmt lys i vinduerne og en by i fuld fart udenfor. Sådan ser vi gerne os selv.',
-        play: { title: 'Hold hånden stille', body: 'Ræk hånden frem og hold den helt stille. Måske lander der en sommerfugl på den.' },
+        play: { title: '', body: 'Ræk hånden frem og hold den helt stille. Måske lander der en sommerfugl på den.' },
       },
       {
         label: 'Mens du venter',
@@ -231,9 +231,9 @@ const TEXT = {
         label: 'The house',
         color: CVI.orange,
         item: 'butterflies',
-        title: 'An old house in a new city',
+        title: '',
         body: 'Old bricks, warm light in the windows and a city in full swing outside. That is how we like to see ourselves.',
-        play: { title: 'Hold your hand still', body: 'Reach out your hand and keep it completely still. Maybe a butterfly will land on it.' },
+        play: { title: '', body: 'Reach out your hand and keep it completely still. Maybe a butterfly will land on it.' },
       },
       {
         label: 'While you wait',

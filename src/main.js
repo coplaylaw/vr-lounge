@@ -32,7 +32,7 @@ const HIGH_FIVE_TIMEOUT = 14;
 // eller senest PLAY_TIMEOUT sekunder efter, at disketten blev sat i.
 const PLAY_DELAY = 4;
 const PLAY_TIMEOUT = 30;
-const RESET_AFTER_HIDDEN = 15; // headsettet taget af i så mange sekunder = ny gæst
+const RESET_AFTER_HIDDEN = 5; // headsettet taget af i så mange sekunder = ny gæst, og oplevelsen starter forfra
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -298,7 +298,10 @@ const story = {
     desk.setSign(SIGN);
     languageButtons.hide();
     reveal.start();
-    later(3, () => props.spawnHeadsets()); // når indlæsningen har nået bænken
+    // Headsettene på bænken tegnes frem af indlæsningen ligesom resten af rummet.
+    for (const headset of props.spawnHeadsets()) {
+      headset.mesh.traverse((obj) => obj.isMesh && reveal.patch(obj.material));
+    }
     sound.play('desk/print', { volume: 0.8 });
     robot.express('happy', 1.2, now());
     sound.play('robot/happy', { at: robot.headPosition(tmp) });
@@ -895,6 +898,14 @@ let vrSupported = false;
 startButton.textContent = 'Start';
 startButton.addEventListener('click', () => (vrSupported && isQuest ? startVR() : startPreview()));
 flatButton.addEventListener('click', () => (isQuest ? startPreview() : startVR()));
+// På Quest starter et tryk hvor som helst på startskærmen oplevelsen, så en ny gæst ikke skal ramme knappen.
+overlay.addEventListener('click', (e) => {
+  if (isQuest && vrSupported && !e.target.closest('button')) startVR();
+});
+// Quest-browseren må selv starte VR igen uden et tryk, når den giver lov (WebXR-navigation).
+navigator.xr?.addEventListener('sessiongranted', () => {
+  if (!renderer.xr.isPresenting) startVR();
+});
 
 if (navigator.xr) {
   navigator.xr.isSessionSupported('immersive-vr').then((ok) => {
@@ -915,7 +926,10 @@ function startPreview() {
   story.reset();
 }
 
+let starting = false;
 async function startVR() {
+  if (starting || renderer.xr.isPresenting) return;
+  starting = true;
   sound.start();
   sound.play('ui/start', { volume: 0.7 });
   try {
@@ -926,26 +940,33 @@ async function startVR() {
   } catch (err) {
     hint.textContent = `Kunne ikke starte VR · Could not start VR: ${err.message}`;
   }
+  starting = false;
 }
 
+// Tager gæsten headsettet af, bliver sessionen skjult (hidden). Har den været skjult i mindst
+// RESET_AFTER_HIDDEN sekunder, starter oplevelsen forfra med sprogvalget, lige når den næste gæst
+// tager headsettet på. Systemmenuen (visible-blurred) tæller ikke.
+// Headsettet kan også gå i dvale, og så bliver selve siden skjult.
 let hiddenSince = null;
+function headsetOff() {
+  hiddenSince ??= performance.now();
+}
+function headsetOn() {
+  if (hiddenSince && renderer.xr.isPresenting && performance.now() - hiddenSince >= RESET_AFTER_HIDDEN * 1000) {
+    sound.play('ui/reset', { volume: 0.6 });
+    story.reset();
+    alignFrames = 0;
+  }
+  hiddenSince = null;
+}
+document.addEventListener('visibilitychange', () => (document.hidden ? headsetOff() : headsetOn()));
 renderer.xr.addEventListener('sessionstart', () => {
   overlay.classList.add('hidden');
   story.reset();
   alignFrames = 0;
+  hiddenSince = null;
   const session = renderer.xr.getSession();
-  session.addEventListener('visibilitychange', () => {
-    if (session.visibilityState !== 'visible') {
-      hiddenSince ??= performance.now();
-      return;
-    }
-    if (hiddenSince && performance.now() - hiddenSince > RESET_AFTER_HIDDEN * 1000) {
-      sound.play('ui/reset', { volume: 0.6 });
-      story.reset();
-      alignFrames = 0;
-    }
-    hiddenSince = null;
-  });
+  session.addEventListener('visibilitychange', () => (session.visibilityState === 'hidden' ? headsetOff() : headsetOn()));
   renderer.xr.getReferenceSpace()?.addEventListener('reset', () => {
     alignFrames = 0;
   });

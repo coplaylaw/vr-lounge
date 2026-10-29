@@ -100,7 +100,7 @@ Lydene afspilles af [src/audio.js](src/audio.js) med rumlig lyd, så de kommer f
 - Ryger en diskette på gulvet, kaster robotten en ny efter 8 sekunder.
 - Hænger maleriet skævt, eller er vasen væltet, flyver robotten hen og retter det efter et par sekunder, når den ikke er i gang med andet.
 - Rører gæsten ikke noget i 30 sekunder, kommer et tip.
-- Tages headsettet af i mere end 15 sekunder, ryddes bordet, og oplevelsen starter forfra med sprogvalget for næste gæst.
+- Tages headsettet af i mindst 5 sekunder, ryddes bordet, og oplevelsen starter forfra med sprogvalget, så snart næste gæst tager det på. Siden kan altså bare stå åben i headsettet. Ender VR-sessionen alligevel (fx når headsettet går i dvale), starter et tryk hvor som helst på startskærmen VR igen.
 - Scenen drejes, så robotten altid står foran gæsten, når VR starter, eller når brillerne centreres igen.
 
 ## Fejlfinding

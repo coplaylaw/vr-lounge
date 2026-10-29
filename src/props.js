@@ -122,6 +122,7 @@ export class Props {
 
   spawnHeadsets() {
     this.headsets = this.refs.headsetSpots.map((p) => createHeadset(this.physics, p));
+    return this.headsets;
   }
 
   // En ting eller et skud ramte en af tingene. surface er fysikkens navn for fladen.

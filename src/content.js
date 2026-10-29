@@ -105,9 +105,9 @@ const TEXT = {
 
     // Vises med mellemrum, hvis gæsten ikke rører noget.
     HINTS: [
-      { title: 'Prøv selv', body: 'Peg på en ting og hold knappen inde, så flyver den hen til dig.' },
-      { title: 'Kast den', body: 'Sving armen og giv slip for at kaste. Det er helt okay at ramme mig.' },
-      { title: 'Kig ud', body: 'Se ud ad vinduerne: svævetoget kører hele vejen rundt om huset.' },
+      { title: '', body: 'Peg på en ting og hold knappen inde, så flyver den hen til dig.' },
+      { title: '', body: 'Sving armen og giv slip for at kaste.' },
+      { title: '', body: 'Se ud ad vinduerne: svævetoget kører hele vejen rundt om huset.' },
     ],
 
     // Vises, når gæsten har prøvet alle disketterne.
@@ -252,9 +252,9 @@ const TEXT = {
     ],
 
     HINTS: [
-      { title: 'Try it', body: 'Point at something and hold the button, and it flies over to you.' },
-      { title: 'Throw it', body: 'Swing your arm and let go to throw. It is totally fine to hit me.' },
-      { title: 'Look outside', body: 'Look out the windows: the monorail goes all the way around the house.' },
+      { title: '', body: 'Point at something and hold the button, and it flies over to you.' },
+      { title: '', body: 'Swing your arm and let go to throw.' },
+      { title: '', body: 'Look out the windows: the monorail goes all the way around the house.' },
     ],
 
     OUTRO: {

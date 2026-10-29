@@ -17,9 +17,10 @@ import { Input } from './input.js';
 import { Sound } from './audio.js';
 import { glowTexture } from './materials.js';
 import { LanguageButtons } from './language.js';
+import { ControllerGuide } from './guide.js';
 import { Reveal } from './reveal.js';
 import {
-  SPEAKER, LANGUAGE_PROMPT, setLanguage, SIGN,
+  SPEAKER, LANGUAGE_PROMPT, CONTROLLER_GUIDE, setLanguage, SIGN,
   INTRO, HIGH_FIVE, HIGH_FIVE_DONE, DISK_HINT, NEXT_DISK, TOPICS, BONUS_TOPICS, BONUS, EVENTS,
   HIT_LINES, HINTS, OUTRO, VOICE_FILES,
 } from './content.js';
@@ -85,6 +86,7 @@ const coffeeSpill = new CoffeeSpill(stage, [{
   y: DESK_TOP, minX: -DESK.width / 2, maxX: DESK.width / 2, minZ: DESK.z - DESK.depth / 2, maxZ: DESK.z + DESK.depth / 2,
 }]);
 const languageButtons = new LanguageButtons(stage);
+const guide = new ControllerGuide(stage);
 const sound = new Sound(stage, VOICE_FILES);
 const avatar = new Avatar(scene);
 const photos = new Photos(physics);
@@ -244,7 +246,7 @@ function printItem(kind) {
 // --- Forløbet ---
 
 const story = {
-  phase: 'intro', // intro | highfive | play
+  phase: 'intro', // guide | language | intro | highfive | play
   queue: [],
   idle: 0,
   hint: 0,
@@ -285,11 +287,25 @@ const story = {
       nextDisk: 0, nextDiskAt: Infinity, insertedAt: Infinity, disksGiven: 0, topicsSeen: new Set(), bonusGiven: false, outroShown: false,
       said: new Set(),
     });
-    // Hver ny gæst starter med at vælge sprog.
+    // Hver ny gæst får først vist, hvordan controllerne holdes (kun i VR), og vælger så sprog.
     robot.wave(4, now());
     sound.play('robot/wave', { at: robot.headPosition(tmp), delay: 0.4 });
-    languageButtons.show();
     reveal.hide();
+    languageButtons.hide();
+    if (renderer.xr.isPresenting) {
+      this.phase = 'guide';
+      guide.show();
+      this.say(CONTROLLER_GUIDE);
+    } else {
+      this.askLanguage();
+    }
+  },
+
+  askLanguage() {
+    this.phase = 'language';
+    this.phaseTime = 0;
+    guide.hide();
+    languageButtons.show();
     this.say(LANGUAGE_PROMPT);
   },
 
@@ -390,6 +406,12 @@ const story = {
     const pause = this.voiced ? VOICE_PAUSE : LINE_PAUSE;
     if (!panel.isTyping && this.queue.length && since > pause) this.show(this.queue.shift());
     this.phaseTime += dt;
+
+    if (this.phase === 'guide') {
+      guide.update(dt);
+      if (this.quiet && this.phaseTime > 3 && since > 1.2) this.askLanguage();
+      return;
+    }
 
     if (this.phase === 'language') {
       // I VR vælges sproget ved at røre en knap. På skærmen klikkes der (se onClick).
@@ -1024,7 +1046,7 @@ function simulate(time, dt) {
 
 // Til fejlfinding i browserens konsol. advance(sek) spoler tiden frem uden at tegne.
 window.lounge = {
-  story, physics, input, robot, targets, butterflies, desk, languageButtons, reveal, world, scene, camera, printItem, dispenseDisk, startInsert, renderer, sound,
+  story, physics, input, robot, targets, butterflies, desk, languageButtons, guide, reveal, world, scene, camera, printItem, dispenseDisk, startInsert, renderer, sound,
   props, photos, bin, takePhoto, allTopics, projectiles,
   advance(seconds) {
     for (let t = 0; t < seconds; t += 1 / 60) {

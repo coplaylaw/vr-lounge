@@ -14,6 +14,18 @@ export const LANGUAGE_PROMPT = {
   voice: ['voice/language-1-da', 0.3, 'voice/language-2-en', 0.8, 'voice/language-3-da', 0.3, 'voice/language-4-en'],
 };
 
+// Allerførst i VR, før sproget er valgt, så den siges på begge sprog.
+export const CONTROLLER_GUIDE = {
+  title: 'Grib · Grab',
+  body: 'Hej! Grib ting med knappen under langfingeren, og tryk med pegefingeren. '
+    + 'Hi! Grab things with the button under your middle finger, and press with your index finger.',
+  voice: ['voice/guide-da', 0.4, 'voice/guide-en'],
+  lines: [
+    { voice: 'voice/guide-da', lang: 'da', text: 'Hej! Grib ting med knappen under langfingeren, og tryk med pegefingeren.' },
+    { voice: 'voice/guide-en', lang: 'en', text: 'Hi! Grab things with the button under your middle finger, and press with your index finger.' },
+  ],
+};
+
 export const LANGUAGES = [
   { id: 'da', label: 'DANSK' },
   { id: 'en', label: 'ENGLISH' },
@@ -363,10 +375,11 @@ for (const [lang, text] of Object.entries(TEXT)) {
   }
   for (const [key, line] of Object.entries(text.EVENTS)) add(line, `event-${key}`);
 }
+VOICE_LINES.push(...CONTROLLER_GUIDE.lines);
 
 // Alle indtalte replikker på begge sprog, så de kan hentes på forhånd.
 export const VOICE_FILES = [];
 (function collect(value) {
   if (typeof value === 'string' && value.startsWith('voice/')) VOICE_FILES.push(value);
   else if (value && typeof value === 'object') Object.values(value).forEach(collect);
-})([LANGUAGE_PROMPT, TEXT]);
+})([LANGUAGE_PROMPT, CONTROLLER_GUIDE.voice, TEXT]);

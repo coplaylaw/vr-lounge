@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildWorld, SKY_HORIZON } from './world.js';
-import { Physics } from './physics.js';
+import { Physics, CANNON } from './physics.js';
 import { Robot } from './robot.js';
 import { Desk, DESK, DESK_TOP, PAD } from './desk.js';
 import {
@@ -28,7 +28,10 @@ const LINE_PAUSE = 3; // sekunder mellem robottens linjer
 const VOICE_PAUSE = 0.8; // kortere pause, når robotten har sagt linjen højt
 const IDLE_HINT_AFTER = 30;
 const HIGH_FIVE_TIMEOUT = 14;
-const NEXT_DISK_AFTER = 12; // sekunder efter en diskette er sat i
+// Næste diskette kommer, når gæsten har rørt ved det, maskinen printede (plus PLAY_DELAY),
+// eller senest PLAY_TIMEOUT sekunder efter, at disketten blev sat i.
+const PLAY_DELAY = 4;
+const PLAY_TIMEOUT = 30;
 const RESET_AFTER_HIDDEN = 15; // headsettet taget af i så mange sekunder = ny gæst
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -181,6 +184,7 @@ function spawnOnPad(item, velocity) {
   item.appear = 0;
   item.mesh.scale.setScalar(0.001);
   item.body.velocity.set(velocity.x, velocity.y, velocity.z);
+  item.data.printedAt = now();
   printed.push(item);
   sound.play('desk/materialize', { at: item.mesh.position, volume: 0.7 });
 }
@@ -248,6 +252,7 @@ const story = {
   phaseTime: 0,
   nextDisk: 0,
   nextDiskAt: Infinity,
+  insertedAt: Infinity, // når den seneste diskette blev sat i
   disksGiven: 0,
   topicsSeen: new Set(),
   bonusGiven: false,
@@ -277,7 +282,7 @@ const story = {
     Object.assign(this, {
       speakingUntil: 0,
       phase: 'language', queue: [], idle: 0, hint: 0, hits: 0, phaseTime: 0,
-      nextDisk: 0, nextDiskAt: Infinity, disksGiven: 0, topicsSeen: new Set(), bonusGiven: false, outroShown: false,
+      nextDisk: 0, nextDiskAt: Infinity, insertedAt: Infinity, disksGiven: 0, topicsSeen: new Set(), bonusGiven: false, outroShown: false,
       said: new Set(),
     });
     // Hver ny gæst starter med at vælge sprog.
@@ -357,8 +362,14 @@ const story = {
     this.nextDiskAt = now() + 2.5;
   },
 
-  onGrab() {
+  onGrab(item) {
     this.idle = 0;
+    if (item?.data.printedAt >= this.insertedAt) this.played();
+  },
+
+  // Gæsten har leget med det, der blev printet: næste diskette om lidt.
+  played() {
+    if (this.phase === 'play') this.nextDiskAt = Math.min(this.nextDiskAt, now() + PLAY_DELAY);
   },
 
   onHit(item) {
@@ -465,7 +476,8 @@ function onDiskInserted(topic) {
     story.outroShown = true;
     story.queue.push(OUTRO);
   }
-  story.nextDiskAt = now() + NEXT_DISK_AFTER;
+  story.insertedAt = now();
+  story.nextDiskAt = now() + PLAY_TIMEOUT;
   story.idle = 0;
   robot.express('happy', 2, now());
   sound.play('desk/disk-read', { at: desk.slotFront, volume: 0.8 });
@@ -481,7 +493,7 @@ function spawnTargets() {
 const input = new Input({
   renderer, scene, camera, stage, physics,
   onGrab: (item) => {
-    story.onGrab();
+    story.onGrab(item);
     sound.play('interact/grab', { at: item.mesh.position, volume: 0.6 });
   },
   onRelease: (item) => {
@@ -620,7 +632,10 @@ projectiles.onImpact = (shot, surface) => {
   sound.play('blaster/shot-impact', { at: shot.mesh.position, volume: 0.35, gap: 0.08 });
   props.hit(surface, 3, shot.mesh.position, now());
 };
-butterflies.onLand = (pos) => sound.play('butterflies/land', { at: pos, volume: 0.7 });
+butterflies.onLand = (pos, perch) => {
+  sound.play('butterflies/land', { at: pos, volume: 0.7 });
+  if (perch.hand) story.played(); // en sommerfugl på hånden tæller som at have prøvet den
+};
 butterflies.onTakeoff = (pos) => sound.play('butterflies/takeoff', { at: pos, volume: 0.6 });
 
 // --- Det der sker hvert billede ---
@@ -630,6 +645,27 @@ const viewerLocal = new THREE.Vector3();
 const headPos = new THREE.Vector3();
 const tmp = new THREE.Vector3();
 const tmpDir = new THREE.Vector3();
+
+// Hvor sommerfuglene må lande: på gæstens hænder i VR og oven på ting, der ligger stille.
+// I den flade visning er musen ikke en hånd, ellers satte de sig i luften ved markøren.
+function butterflyPerches() {
+  const perches = input.xrActive ? input.perches.map((p) => ({ ...p, hand: true })) : [];
+  for (const item of physics.items) {
+    if (item.heldBy || item.frozen) continue;
+    const b = item.body;
+    const sleeping = b.sleepState === CANNON.Body.SLEEPING;
+    perches.push({
+      id: 1000 + b.id,
+      point: item.data.perchPoint ??= new THREE.Vector3(),
+      speed: sleeping ? 0 : b.velocity.length(),
+      still: sleeping ? 10 : item.still,
+      hand: false,
+    });
+    if (b.aabbNeedsUpdate) b.updateAABB();
+    item.data.perchPoint.set(b.position.x, b.aabb.upperBound.y + 0.004, b.position.z);
+  }
+  return perches;
+}
 
 function updatePlay(time, dt) {
   // Disketter suges ind, når de kommer tæt på åbningen.
@@ -643,17 +679,20 @@ function updatePlay(time, dt) {
   desk.update(time, dt, diskNear);
   updateInsert(dt);
 
-  // Konfettikanonen skyder af sig selv, mens den holdes.
+  // Konfettikanonen holdes med grebknappen og skyder med aftrækkeren (med musen: højreklik eller mellemrum).
+  // Gribes den med aftrækkeren eller med håndsporing (knib), skyder den af sig selv.
   for (const holder of input.holders) {
     const item = holder.held;
     if (item.kind === 'blaster') {
       item.data.cooldown -= dt;
-      if (item.data.cooldown <= 0) {
+      const firing = holder.heldButton === 'select' || holder.using;
+      if (firing && item.data.cooldown <= 0) {
         item.data.cooldown = 0.3;
         tmp.copy(BLASTER_MUZZLE).applyQuaternion(item.mesh.quaternion).add(item.mesh.position);
         tmpDir.set(0, 0, -1).applyQuaternion(item.mesh.quaternion).multiplyScalar(11).add(holder.velocity);
         projectiles.fire(tmp, tmpDir);
         sound.play('blaster/shot', { at: tmp, volume: 0.6 });
+        holder.inputSource?.gamepad?.hapticActuators?.[0]?.pulse?.(0.4, 40); // et lille ryk i hånden
       }
     }
     // Slag mod robotten med noget i hånden.
@@ -695,7 +734,7 @@ function updatePlay(time, dt) {
   }
   coffeeSpill.update(dt);
   updateToys(time, dt);
-  butterflies.update(time, dt, input.perches);
+  butterflies.update(time, dt, butterflyPerches());
   confetti.update(dt);
   updateSounds(time, dt, diskNear);
 }

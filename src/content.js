@@ -76,7 +76,7 @@ const TEXT = {
         item: 'blaster',
         title: '',
         body: 'Vi bygger selv de digitale værktøjer, vi arbejder med. Det rum, du sidder i, er også lavet her i huset.',
-        play: { title: '', body: 'Tag pistolen og sigt efter de lysende ringe. Den skyder af sig selv, så længe du holder den.' },
+        play: { title: '', body: 'Hold pistolen med knappen på siden, og skyd med aftrækkeren. Sigt efter de lysende ringe.' },
       },
       {
         label: 'Parkering',
@@ -225,7 +225,7 @@ const TEXT = {
         item: 'blaster',
         title: '',
         body: 'We build the digital tools we work with ourselves. The room you are sitting in was also built in-house.',
-        play: { title: '', body: 'Take the gun and aim at the glowing rings. It fires on its own as long as you hold it.' },
+        play: { title: '', body: 'Hold the gun with the button on the side, and fire with the trigger under your index finger. Aim for the glowing rings.' },
       },
       {
         label: 'Parking',

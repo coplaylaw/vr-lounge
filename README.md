@@ -24,6 +24,10 @@ Rummet reagerer også: elgmaleriet kommer til at hænge skævt, vasen på skrank
 
 Den er bygget som en WebXR-side (three.js og cannon-es til fysik) og kører i Quest-browseren. Der er intet byggetrin, men bibliotekerne hentes fra jsDelivr, så headsettet skal være på nettet.
 
+## Online
+
+Siden ligger på https://vr-lounge.coplay.law (GitHub Pages fra `main`). Domænet står i [CNAME](CNAME), og hos DNS-udbyderen peger en CNAME-post `vr-lounge` på `coplaylaw.github.io`.
+
 ## Kør lokalt
 
 ```bash
@@ -49,7 +53,7 @@ adb -s <serienummer> shell am start -a android.intent.action.VIEW -d http://loca
 - **Grib:** grebknappen på siden af controlleren eller aftrækkeren. Med hænderne: knib tommel og pegefinger sammen.
 - **Kast:** sving armen og giv slip.
 - **Hent på afstand:** peg på en ting og grib, så flyver den hen i hånden.
-- **Konfettikanonen** skyder af sig selv, så længe den holdes.
+- **Konfettikanonen** holdes med grebknappen og skyder med aftrækkeren (med musen: højreklik eller mellemrum). Gribes den med aftrækkeren eller med håndsporing, skyder den af sig selv.
 - **Kameraet:** tryk på den anden knap, mens du holder det, eller tryk på den røde knap ovenpå med den anden hånds pegefinger.
 - **Lampen:** peg på den og tryk.
 - Controllerne vises som hænder. Grebknappen lukker hånden, aftrækkeren bøjer pegefingeren, og tommelfingeren lægger sig ned, når den rører pinden eller knapperne. Med håndsporing vises Quests egne hænder.

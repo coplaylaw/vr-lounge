@@ -83,7 +83,7 @@ const TEXT = {
         color: CVI.orange,
         item: 'butterflies',
         title: '',
-        body: 'Gamle mursten, varmt lys i vinduerne og en by i fuld fart udenfor. Sådan ser vi gerne os selv.',
+        body: 'Ankom du i bil? Så husk at få registreret din nummerplade i receptionen af hensyn til parkeringen.',
         play: { title: '', body: 'Ræk hånden frem og hold den helt stille. Måske lander der en sommerfugl på den.' },
       },
       {
@@ -232,7 +232,7 @@ const TEXT = {
         color: CVI.orange,
         item: 'butterflies',
         title: '',
-        body: 'Old bricks, warm light in the windows and a city in full swing outside. That is how we like to see ourselves.',
+        body: 'Did you arrive by car? Then remember to have your licence plate registered at the reception for parking.',
         play: { title: '', body: 'Reach out your hand and keep it completely still. Maybe a butterfly will land on it.' },
       },
       {

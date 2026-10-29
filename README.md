@@ -24,6 +24,10 @@ Rummet reagerer også: elgmaleriet kommer til at hænge skævt, vasen på skrank
 
 Den er bygget som en WebXR-side (three.js og cannon-es til fysik) og kører i Quest-browseren. Der er intet byggetrin, men bibliotekerne hentes fra jsDelivr, så headsettet skal være på nettet.
 
+## Online
+
+Siden ligger på https://vr-lounge.coplay.law (GitHub Pages fra `main`). Domænet står i [CNAME](CNAME), og hos DNS-udbyderen peger en CNAME-post `vr-lounge` på `coplaylaw.github.io`.
+
 ## Kør lokalt
 
 ```bash

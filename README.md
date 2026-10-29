@@ -1,6 +1,6 @@
 # CO:PLAY Lounge
 
-En kort VR-oplevelse til de to Quest 2-headset i receptionen, stærkt inspireret af Oculus' "First Contact". Gæsten sidder ved et bord i en virtuel udgave af CO:PLAYs reception med søjlerne, glasvæggene, den blå skranke, neonskiltet og elgmaleriet. Ud ad vinduerne ses en by i blå time med svævetog. Robotten CO:BOT byder velkommen, beder om en high five og kaster disketter over bordet. Når en diskette stikkes ind i maskinen, fortæller robotten om et emne, og maskinen printer noget at lege med:
+En kort VR-oplevelse til de to Quest 2-headset i receptionen, stærkt inspireret af Oculus' "First Contact". Gæsten sidder ved et bord i en virtuel udgave af CO:PLAYs reception med søjlerne, glasvæggene, den blå skranke med et billede af receptionisten Pia, neonskiltet og elgmaleriet. Ud ad vinduerne ses en by i blå time med svævetog. Robotten CO:BOT byder velkommen, beder om en high five og kaster disketter over bordet. Når en diskette stikkes ind i maskinen, fortæller robotten om et emne, og maskinen printer noget at lege med:
 
 | Diskette | Printer |
 | --- | --- |
@@ -95,12 +95,13 @@ Lydene afspilles af [src/audio.js](src/audio.js) med rumlig lyd, så de kommer f
 
 ## Opførsel
 
+- I VR starter oplevelsen med en ultrakort guide: to Quest 2-controllere svæver foran gæsten, grebknappen og aftrækkeren trykkes skiftevis ind og lyser, og CO:BOT forklarer dem på dansk og engelsk ([src/guide.js](src/guide.js)). Controllermodellerne i `assets/models` er Metas egne fra [WebXR Input Profiles](https://github.com/immersive-web/webxr-input-profiles) (MIT). I den flade visning springes guiden over.
 - Indtil sproget er valgt, er der kun robotten, sprogknapperne og et gitter i et mørkt tomrum. Bagefter "indlæses" verdenen ud fra gæsten: først som lysende cyan gitterlinjer, der så fyldes ud ([src/reveal.js](src/reveal.js)).
 - Gæsten vælger først dansk eller engelsk ved at røre en af de to knapper over bordet (eller klikke på den i den flade visning). Derefter velkomst, high five (springes over efter 14 sekunder) og én diskette ad gangen. Har gæsten prøvet alle fire, kommer de fire bonusdisketter på én gang. Når alle otte er prøvet, kommer en afslutning, og alle disketterne fortsætter i ring.
 - Ryger en diskette på gulvet, kaster robotten en ny efter 8 sekunder.
 - Hænger maleriet skævt, eller er vasen væltet, flyver robotten hen og retter det efter et par sekunder, når den ikke er i gang med andet.
 - Rører gæsten ikke noget i 30 sekunder, kommer et tip.
-- Tages headsettet af i mindst 5 sekunder, ryddes bordet, og oplevelsen starter forfra med sprogvalget, så snart næste gæst tager det på. Siden kan altså bare stå åben i headsettet. Ender VR-sessionen alligevel (fx når headsettet går i dvale), starter et tryk hvor som helst på startskærmen VR igen.
+- Tages headsettet af i mindst 5 sekunder, ryddes bordet, og oplevelsen starter forfra med controllerguiden og sprogvalget, så snart næste gæst tager det på. Siden kan altså bare stå åben i headsettet. Ender VR-sessionen alligevel (fx når headsettet går i dvale), starter et tryk hvor som helst på startskærmen VR igen.
 - Scenen drejes, så robotten altid står foran gæsten, når VR starter, eller når brillerne centreres igen.
 
 ## Fejlfinding

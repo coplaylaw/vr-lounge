@@ -335,6 +335,43 @@ function buildRoom(stage, physics, glowTex, animated) {
   });
   vase.add(new THREE.Mesh(mergeGeometries(stems), stemMat));
   physics.addStatic(new CANNON.Cylinder(0.12, 0.12, 0.45, 10), { x: desk.x, y: desk.h + 0.23, z: desk.z - 0.75 }, null, 'vase');
+  // Lille stående egetræsramme midt på skranken med et billede af receptionisten Pia, vendt mod gæsten.
+  const photoFrame = new THREE.Group();
+  const fx = desk.x - 0.12;
+  photoFrame.position.set(fx, desk.h, desk.z);
+  photoFrame.rotation.y = Math.atan2(-fx, -desk.z);
+  room.add(photoFrame);
+  const FRAME = { w: 0.24, h: 0.24, border: 0.018, depth: 0.02 };
+  const front = new THREE.Group(); // lænet lidt bagover om den nederste kant
+  front.rotation.x = -0.16;
+  photoFrame.add(front);
+  const oakParts = [
+    new THREE.BoxGeometry(FRAME.w, FRAME.border, FRAME.depth).translate(0, FRAME.border / 2, 0),
+    new THREE.BoxGeometry(FRAME.w, FRAME.border, FRAME.depth).translate(0, FRAME.h - FRAME.border / 2, 0),
+    new THREE.BoxGeometry(FRAME.border, FRAME.h, FRAME.depth).translate(-(FRAME.w - FRAME.border) / 2, FRAME.h / 2, 0),
+    new THREE.BoxGeometry(FRAME.border, FRAME.h, FRAME.depth).translate((FRAME.w - FRAME.border) / 2, FRAME.h / 2, 0),
+    new THREE.BoxGeometry(FRAME.w, FRAME.h, 0.004).translate(0, FRAME.h / 2, -FRAME.depth / 2 + 0.002), // bagplade
+  ];
+  const oak = new THREE.MeshLambertMaterial({ color: 0xd9ad7c });
+  front.add(new THREE.Mesh(mergeGeometries(oakParts), oak));
+  const passepartout = new THREE.Mesh(
+    new THREE.PlaneGeometry(FRAME.w - FRAME.border, FRAME.h - FRAME.border),
+    new THREE.MeshBasicMaterial({ color: 0xe9e6df }),
+  );
+  passepartout.position.set(0, FRAME.h / 2, -0.004);
+  front.add(passepartout);
+  const piaTexture = new THREE.TextureLoader().load('assets/images/pia.jpg');
+  piaTexture.colorSpace = THREE.SRGBColorSpace;
+  const pia = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.16), new THREE.MeshBasicMaterial({ map: piaTexture }));
+  pia.position.set(0, FRAME.h / 2, -0.002);
+  front.add(pia);
+  // Støtteben bagpå.
+  const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.19, 0.006).translate(0, 0.095, 0), oak);
+  leg.position.set(0, 0, -0.11);
+  leg.rotation.x = 0.42;
+  photoFrame.add(leg);
+  physics.addBox(new THREE.Vector3(FRAME.w, FRAME.h, 0.06), { x: fx, y: desk.h + FRAME.h / 2, z: desk.z }, photoFrame.rotation.y);
+
   for (const [dz, h] of [[0.6, 0.18], [0.68, 0.12]]) {
     kit.add(new THREE.CylinderGeometry(0.035, 0.035, h, 16), M.trim, at(desk.x, desk.h + h / 2, desk.z + dz));
     kit.add(new THREE.SphereGeometry(0.012, 8, 6), M.warm, at(desk.x, desk.h + h + 0.012, desk.z + dz));

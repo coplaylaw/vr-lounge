@@ -320,16 +320,20 @@ function buildRoom(stage, physics, glowTex, animated) {
     blooms.push(bloom.clone().translate(Math.cos(a) * 0.1 * rnd(), 0.36 + rnd() * 0.12, Math.sin(a) * 0.12));
   }
   vase.add(new THREE.Mesh(mergeGeometries(blooms), M.trim));
-  // Grønne stilke fra bunden af vasen op til hver blomst, let buede.
+  // Grønne stilke fra bunden af vasen op gennem halsen og ud til hver blomst, let buede.
+  // Inde i vasen holder de sig tæt på midten, så de ikke stikker ud gennem siden eller kanten.
   const stemMat = new THREE.MeshLambertMaterial({ color: 0x5f7a45 });
   const stems = blooms.map((b) => {
     b.computeBoundingSphere();
     const top = b.boundingSphere.center;
-    const base = new THREE.Vector3(top.x * 0.15, 0.12, top.z * 0.15);
-    const mid = new THREE.Vector3().lerpVectors(base, top, 0.5);
-    mid.x *= 0.7;
-    mid.z *= 0.7;
-    return new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(base, mid, top), 6, 0.005, 5);
+    const dir = new THREE.Vector3(top.x, 0, top.z);
+    const out = Math.min(1, dir.length() / 0.12);
+    dir.normalize();
+    const base = dir.clone().multiplyScalar(0.012 * out).setY(0.1);
+    const neck = dir.clone().multiplyScalar(0.03 * out).setY(0.28);
+    const above = dir.clone().multiplyScalar(0.03 + 0.05 * out).setY(0.32);
+    const curve = new THREE.CatmullRomCurve3([base, neck, above, top]);
+    return new THREE.TubeGeometry(curve, 10, 0.005, 5);
   });
   vase.add(new THREE.Mesh(mergeGeometries(stems), stemMat));
   physics.addStatic(new CANNON.Cylinder(0.12, 0.12, 0.45, 10), { x: desk.x, y: desk.h + 0.23, z: desk.z - 0.75 }, null, 'vase');

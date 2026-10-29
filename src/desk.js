@@ -24,9 +24,11 @@ export class Desk {
     physics.addStatic(new CANNON.Box(new CANNON.Vec3(DESK.width / 2, 0.02, DESK.depth / 2)), top.position);
 
     const cyan = new THREE.MeshBasicMaterial({ color: CVI.cyan, toneMapped: false });
+    // Kanten stikker lidt ud foran og over bordpladen. Lå dens flader oven i pladens, flimrede de
+    // mod hinanden (z-fighting).
     for (const side of [1, -1]) {
-      const edge = new THREE.Mesh(new THREE.BoxGeometry(DESK.width, 0.008, 0.008), cyan);
-      edge.position.set(0, DESK_TOP - 0.004, DESK.z + (side * DESK.depth) / 2);
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(DESK.width + 0.004, 0.011, 0.007), cyan);
+      edge.position.set(0, DESK_TOP - 0.004, DESK.z + side * (DESK.depth / 2 + 0.0025));
       stage.add(edge);
     }
 

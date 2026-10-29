@@ -328,7 +328,8 @@ export class Input {
       this.updateHeld(source, dt);
       if (!source.held && !source.pulling) this.findTarget(source);
       else source.target = null;
-      source.controllerModel.visible = !source.isHand;
+      // Holder gæsten noget, erstatter tingen controlleren i hånden.
+      source.controllerModel.visible = !source.isHand && !source.held && !source.pulling;
 
       // Strålen vises svagt, og tydeligt når den peger på noget, der kan hentes.
       const far = source.target?.mode === 'ray';

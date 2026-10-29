@@ -573,7 +573,7 @@ export class Butterflies {
           b.target.copy(perch.point).add(b.offset);
           if (b.group.position.distanceTo(b.target) < 0.015) {
             b.state = 'perched';
-            this.onLand?.(b.group.position);
+            this.onLand?.(b.group.position, perch);
           }
         } else if (time > b.nextTarget) {
           b.nextTarget = time + 1 + Math.random() * 2;

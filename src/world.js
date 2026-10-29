@@ -320,6 +320,18 @@ function buildRoom(stage, physics, glowTex, animated) {
     blooms.push(bloom.clone().translate(Math.cos(a) * 0.1 * rnd(), 0.36 + rnd() * 0.12, Math.sin(a) * 0.12));
   }
   vase.add(new THREE.Mesh(mergeGeometries(blooms), M.trim));
+  // Grønne stilke fra bunden af vasen op til hver blomst, let buede.
+  const stemMat = new THREE.MeshLambertMaterial({ color: 0x5f7a45 });
+  const stems = blooms.map((b) => {
+    b.computeBoundingSphere();
+    const top = b.boundingSphere.center;
+    const base = new THREE.Vector3(top.x * 0.15, 0.12, top.z * 0.15);
+    const mid = new THREE.Vector3().lerpVectors(base, top, 0.5);
+    mid.x *= 0.7;
+    mid.z *= 0.7;
+    return new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(base, mid, top), 6, 0.005, 5);
+  });
+  vase.add(new THREE.Mesh(mergeGeometries(stems), stemMat));
   physics.addStatic(new CANNON.Cylinder(0.12, 0.12, 0.45, 10), { x: desk.x, y: desk.h + 0.23, z: desk.z - 0.75 }, null, 'vase');
   for (const [dz, h] of [[0.6, 0.18], [0.68, 0.12]]) {
     kit.add(new THREE.CylinderGeometry(0.035, 0.035, h, 16), M.trim, at(desk.x, desk.h + h / 2, desk.z + dz));
@@ -670,7 +682,7 @@ function buildCity(stage, animated, holoMaterials) {
     addBuilding(x, z, 10 + rnd() * 22, 10 + rnd() * 22, h, new THREE.Color(t * 0.9, t * 0.95, t));
   }
 
-  // Nabohuset med det store CO:PLAY-skilt, set gennem vinduet forrest til højre.
+  // Nabohuset, set gennem vinduet forrest til højre.
   const signSpot = new THREE.Vector3(15, 0, -21.5);
   addBuilding(signSpot.x, signSpot.z, 11, 11, 32, new THREE.Color(0.5, 0.5, 0.55));
 
@@ -682,24 +694,6 @@ function buildCity(stage, animated, holoMaterials) {
     mergeGeometries(strips),
     new THREE.MeshBasicMaterial({ color: CVI.cyan, toneMapped: false }),
   ));
-
-  const sign = new THREE.Group();
-  sign.position.set(signSpot.x, GROUND + 32, signSpot.z);
-  sign.rotation.y = Math.atan2(-signSpot.x, -signSpot.z);
-  const neon = new THREE.Mesh(
-    new THREE.PlaneGeometry(12, 3),
-    new THREE.MeshBasicMaterial({
-      map: logoNeonTexture(), transparent: true, depthWrite: false, toneMapped: false,
-    }),
-  );
-  neon.position.y = 3.2;
-  sign.add(neon);
-  for (const x of [-4, 0, 4]) {
-    const strut = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.2, 0.2), new THREE.MeshBasicMaterial({ color: CVI.navy }));
-    strut.position.set(x, 1.1, -0.1);
-    sign.add(strut);
-  }
-  stage.add(sign);
 
   const beaconMat = new THREE.PointsMaterial({
     color: CVI.orange, size: 4, sizeAttenuation: false, transparent: true,
@@ -823,7 +817,6 @@ function buildDrones(stage, animated, holoMaterials) {
   const spots = [
     [-60, 26, -80, 4],
     [55, 28, -75, 5],
-    [-6, 30, -90, 4.5],
     [80, 24, -10, 4],
   ];
   const body = new THREE.MeshLambertMaterial({ color: CVI.navy });

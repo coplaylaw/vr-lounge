@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { XRHandModelFactory } from 'three/addons/webxr/XRHandModelFactory.js';
-import { ControllerHand } from './hands.js';
+import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 import { CVI } from './palette.js';
 
 const NEAR_GRAB = 0.07; // afstand fra hånd til tingens overflade
@@ -38,6 +38,7 @@ export class Input {
     this.sources = [];
 
     const handModels = new XRHandModelFactory();
+    const controllerModels = new XRControllerModelFactory();
     const rayGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]);
 
     for (let i = 0; i < 2; i++) {
@@ -47,8 +48,11 @@ export class Input {
       controller.add(ray);
       scene.add(controller);
 
-      // Controlleren vises som en hånd (se hands.js). Den laves, når vi ved, om det er venstre eller højre.
+      // Controlleren vises med headsettets egen model af den (hentes fra WebXR Input Profiles),
+      // og hænderne med håndsporing som Quests egne hænder.
       const grip = renderer.xr.getControllerGrip(i);
+      const controllerModel = controllerModels.createControllerModel(grip);
+      grip.add(controllerModel);
       scene.add(grip);
 
       const hand = renderer.xr.getHand(i);
@@ -56,19 +60,13 @@ export class Input {
       scene.add(hand);
 
       const source = this.createSource(i, 'xr');
-      Object.assign(source, { controller, grip, hand, ray });
+      Object.assign(source, { controller, grip, hand, ray, controllerModel });
 
       controller.addEventListener('connected', (e) => {
         source.active = true;
         source.isHand = Boolean(e.data.hand);
         source.inputSource = e.data;
         source.history.length = 0;
-        if (!source.isHand && source.handModel?.handedness !== e.data.handedness) {
-          source.handModel?.group.removeFromParent();
-          source.handModel = new ControllerHand(e.data.handedness);
-          source.handModel.handedness = e.data.handedness;
-          grip.add(source.handModel.group);
-        }
       });
       controller.addEventListener('disconnected', () => {
         this.release(source, null);
@@ -330,10 +328,7 @@ export class Input {
       this.updateHeld(source, dt);
       if (!source.held && !source.pulling) this.findTarget(source);
       else source.target = null;
-      if (source.handModel) {
-        source.handModel.group.visible = !source.isHand;
-        source.handModel.update(source.inputSource?.gamepad, Boolean(source.held || source.pulling), dt);
-      }
+      source.controllerModel.visible = !source.isHand;
 
       // Strålen vises svagt, og tydeligt når den peger på noget, der kan hentes.
       const far = source.target?.mode === 'ray';

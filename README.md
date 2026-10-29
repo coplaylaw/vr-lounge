@@ -6,7 +6,7 @@ En kort VR-oplevelse til de to Quest 2-headset i receptionen, stærkt inspireret
 | --- | --- |
 | Hvem er vi? | Bogstavklodser, der staver CO:PLAY |
 | Jura + tech | Konfettikanon og fem skydeskiver rundt i rummet |
-| Parkering | Sommerfugle, der lander på en hånd, der holdes stille |
+| Parkering | Sommerfugle, der lander på en hånd, der holdes stille, og flygter, når man vifter efter dem |
 | Mens du venter | En kop kaffe med damp |
 
 Når gæsten har prøvet de fire, kaster robotten fire bonusdisketter på bordet på én gang, og gæsten vælger selv rækkefølgen:
@@ -16,7 +16,7 @@ Når gæsten har prøvet de fire, kaster robotten fire bonusdisketter på bordet
 | Smil! | Et polaroidkamera. Billederne kommer ud af kameraet og fremkaldes langsomt. Vendes kameraet mod gæsten, flyver robotten med på billedet |
 | Godkendt | Et stempel og en aftale. Stemplet sætter aftryk på aftalen, bordet, tingene og robotten |
 | Papirfly | To papirfly, der svæver, når de kastes roligt |
-| Papirkurv | Fem papirkugler til skraldespanden bag gæsten, som tæller kurvene |
+| Papirkurv | Fem papirkugler til skraldespanden bag gæsten, som tæller kurvene og flytter et nyt sted hen efter hver kurv |
 
 Alt kan gribes og kastes, også efter robotten. Ting, der er uden for rækkevidde, hentes ved at pege på dem og holde knappen inde.
 
@@ -56,7 +56,7 @@ adb -s <serienummer> shell am start -a android.intent.action.VIEW -d http://loca
 - **Konfettikanonen** holdes med grebknappen og skyder med aftrækkeren (med musen: højreklik eller mellemrum). Gribes den med aftrækkeren eller med håndsporing, skyder den af sig selv.
 - **Kameraet:** tryk på den anden knap, mens du holder det, eller tryk på den røde knap ovenpå med den anden hånds pegefinger.
 - **Lampen:** peg på den og tryk.
-- Controllerne vises som hænder. Grebknappen lukker hånden, aftrækkeren bøjer pegefingeren, og tommelfingeren lægger sig ned, når den rører pinden eller knapperne. Med håndsporing vises Quests egne hænder.
+- Controllerne vises med Quests egne controllermodeller, og med håndsporing vises Quests egne hænder.
 
 ## Ret tekster og indhold
 
@@ -66,7 +66,7 @@ adb -s <serienummer> shell am start -a android.intent.action.VIEW -d http://loca
 - Disketter, klodser, kanon, kaffe, skydeskiver, konfetti og sommerfugle: [src/items.js](src/items.js)
 - Bonusdisketternes ting (kamera og billeder, stempel og aftale, papirfly, papirkugler og skraldespand): [src/toys.js](src/toys.js)
 - Maleriet, vasen, neonskiltet, lampen og headsettene på bænken: [src/props.js](src/props.js)
-- Hænderne i stedet for controllerne: [src/hands.js](src/hands.js). Gæstens avatar, som kun ses på billeder og gennem headsettet: [src/avatar.js](src/avatar.js)
+- Gæstens avatar, som kun ses på billeder og gennem headsettet: [src/avatar.js](src/avatar.js)
 - Greb og kast: [src/input.js](src/input.js), fysik: [src/physics.js](src/physics.js)
 - Forløbet: [src/main.js](src/main.js)
 - Rummet og byen: [src/world.js](src/world.js), teksturer: [src/materials.js](src/materials.js)

@@ -535,26 +535,50 @@ export class Butterflies {
         state: 'fly',
         perch: -1,
         offset: new THREE.Vector3(),
+        leaveAt: Infinity,
+        scaredUntil: 0,
       });
     }
   }
 
-  // perches: [{ id, point, speed, still }] i stage-koordinater.
-  update(time, dt, perches) {
+  // perches: [{ id, point, speed, still, hand }] i stage-koordinater. Hænder foretrækkes frem for ting.
+  // scarers: hænder (eller musen), der skræmmer sommerfuglene væk, når de vifter tæt forbi.
+  update(time, dt, perches, scarers = []) {
+    const stillHand = perches.some((p) => p.hand && p.still > 0.6);
     for (const b of this.list) {
       let perch = b.perch >= 0 ? perches.find((p) => p.id === b.perch) : null;
-      if (b.state !== 'fly' && (!perch || perch.speed > 0.35)) {
+
+      // Viftes der efter sommerfuglen, flyver den hurtigt væk fra hånden og lander ikke lige med det samme.
+      for (const s of scarers) {
+        if (s.speed < 0.6 || s.point.distanceTo(b.group.position) > 0.3) continue;
+        if (b.state === 'perched' && b.perch === s.id) continue; // den sidder på hånden og følger med
+        if (b.state === 'perched') this.onTakeoff?.(b.group.position);
+        b.state = 'fly';
+        b.perch = -1;
+        perch = null;
+        b.scaredUntil = time + 2;
+        this.desired.subVectors(b.group.position, s.point).setY(0).normalize();
+        b.velocity.copy(this.desired).multiplyScalar(1.2).setY(0.5);
+        b.target.copy(b.group.position).addScaledVector(this.desired, 0.7).setY(SWARM_CENTER.y + 0.2);
+        b.nextTarget = time + 1;
+        break;
+      }
+
+      // På en ting bliver den kun siddende et stykke tid, og den letter hurtigere, når en hånd holdes stille.
+      const leave = perch && !perch.hand && b.state === 'perched' && (time > b.leaveAt || (stillHand && Math.random() < dt * 0.4));
+      if (b.state !== 'fly' && (!perch || perch.speed > 0.35 || leave)) {
         if (b.state === 'perched') this.onTakeoff?.(b.group.position);
         b.state = 'fly';
         b.perch = -1;
         b.velocity.set((Math.random() - 0.5) * 0.4, 0.6, (Math.random() - 0.5) * 0.4);
+        if (leave) b.scaredUntil = time + 1.5;
       }
 
-      if (b.state === 'fly') {
+      if (b.state === 'fly' && time > b.scaredUntil) {
         for (const p of perches) {
           if (p.still < 0.6 || p.point.distanceTo(b.group.position) > 1.6) continue;
           if (this.list.filter((o) => o.perch === p.id).length >= 2) continue;
-          if (Math.random() < dt * 0.7) {
+          if (Math.random() < dt * (p.hand ? 1.5 : 0.12)) {
             b.state = 'landing';
             b.perch = p.id;
             perch = p;
@@ -573,6 +597,7 @@ export class Butterflies {
           b.target.copy(perch.point).add(b.offset);
           if (b.group.position.distanceTo(b.target) < 0.015) {
             b.state = 'perched';
+            b.leaveAt = perch.hand ? Infinity : time + 6 + Math.random() * 8;
             this.onLand?.(b.group.position, perch);
           }
         } else if (time > b.nextTarget) {
@@ -583,7 +608,7 @@ export class Butterflies {
             SWARM_CENTER.z + (Math.random() - 0.5) * 2 * SWARM_SIZE.z,
           );
         }
-        const speed = b.state === 'landing' ? 0.5 : 0.4;
+        const speed = time < b.scaredUntil - 1 ? 1.1 : b.state === 'landing' ? 0.5 : 0.4;
         this.desired.subVectors(b.target, b.group.position);
         const dist = this.desired.length();
         this.desired.setLength(Math.min(speed, dist * 3));

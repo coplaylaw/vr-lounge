@@ -734,7 +734,7 @@ function updatePlay(time, dt) {
   }
   coffeeSpill.update(dt);
   updateToys(time, dt);
-  butterflies.update(time, dt, butterflyPerches());
+  butterflies.update(time, dt, butterflyPerches(), input.perches);
   confetti.update(dt);
   updateSounds(time, dt, diskNear);
 }
@@ -804,6 +804,11 @@ function updateToys(time, dt) {
       if (physics.items.has(item)) {
         confetti.burst(item.mesh.position.clone(), 12, 0.8);
         physics.remove(item);
+      }
+      // Spanden flytter, så næste kast bliver et nyt skud.
+      if (bin.score < BALLS) {
+        bin.moveTo();
+        sound.play('fx/sparkle', { at: bin.rimPosition, volume: 0.6 });
       }
       printed = printed.filter((p) => p !== item);
       if (printed.filter((p) => p.kind === 'ball').length < BALLS) {

@@ -66,9 +66,9 @@ const TEXT = {
         label: 'Hvem er vi?',
         color: CVI.cyan,
         item: 'blocks',
-        title: 'Hvem er vi?',
+        title: '',
         body: 'CO:PLAY er et advokatfirma, der kombinerer juridisk rådgivning med teknologi.',
-        play: { title: 'Byg løs', body: 'Kan du stable klodserne, så der står CO:PLAY? Du må også gerne kaste dem efter mig.' },
+        play: { title: '', body: 'Kan du stable klodserne, så der står CO:PLAY? Du må også gerne kaste dem efter mig.' },
       },
       {
         label: 'Jura + tech',
@@ -215,9 +215,9 @@ const TEXT = {
         label: 'Who are we?',
         color: CVI.cyan,
         item: 'blocks',
-        title: 'Who are we?',
+        title: '',
         body: 'CO:PLAY is a law firm that combines legal advice with technology.',
-        play: { title: 'Build away', body: 'Can you stack the blocks so they spell CO:PLAY? You are also welcome to throw them at me.' },
+        play: { title: '', body: 'Can you stack the blocks so they spell CO:PLAY? You are also welcome to throw them at me.' },
       },
       {
         label: 'Law + tech',

@@ -99,7 +99,7 @@ const TEXT = {
     // Når gæsten rammer robotten med noget.
     HIT_LINES: [
       { title: 'Av!', body: 'Godt kast. Men jeg er altså lavet af plastik.' },
-      { title: 'Hov!', body: 'Det kildede. Prøv at ramme ringene i stedet.' },
+      { title: 'Hov!', body: 'Det kildede. Prøv at sigte efter noget andet end mig.' },
       { title: 'Fuldtræffer', body: 'Okay, okay. Du sigter godt.' },
     ],
 
@@ -247,7 +247,7 @@ const TEXT = {
 
     HIT_LINES: [
       { title: 'Ouch!', body: 'Nice throw. But I am made of plastic, you know.' },
-      { title: 'Hey!', body: 'That tickled. Try hitting the rings instead.' },
+      { title: 'Hey!', body: 'That tickled. Try aiming at something other than me.' },
       { title: 'Bullseye', body: 'Okay, okay. You have good aim.' },
     ],
 

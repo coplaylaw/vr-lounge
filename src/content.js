@@ -76,7 +76,7 @@ const TEXT = {
         item: 'blaster',
         title: 'Jura møder teknologi',
         body: 'Vi bygger selv de digitale værktøjer, vi arbejder med. Det rum, du sidder i, er også lavet her i huset.',
-        play: { title: 'Konfettikanon', body: 'Tag kanonen og sigt efter de lysende ringe. Den skyder af sig selv, så længe du holder den.' },
+        play: { title: 'Konfettikanon', body: 'Hold kanonen med knappen på siden, og skyd med aftrækkeren under pegefingeren. Sigt efter de lysende ringe.' },
       },
       {
         label: 'Huset',
@@ -225,7 +225,7 @@ const TEXT = {
         item: 'blaster',
         title: 'Law meets technology',
         body: 'We build the digital tools we work with ourselves. The room you are sitting in was made here in house too.',
-        play: { title: 'Confetti cannon', body: 'Take the cannon and aim at the glowing rings. It fires on its own as long as you hold it.' },
+        play: { title: 'Confetti cannon', body: 'Hold the cannon with the button on the side, and fire with the trigger under your index finger. Aim for the glowing rings.' },
       },
       {
         label: 'The house',

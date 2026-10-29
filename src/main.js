@@ -679,17 +679,20 @@ function updatePlay(time, dt) {
   desk.update(time, dt, diskNear);
   updateInsert(dt);
 
-  // Konfettikanonen skyder af sig selv, mens den holdes.
+  // Konfettikanonen holdes med grebknappen og skyder med aftrækkeren (med musen: højreklik eller mellemrum).
+  // Gribes den med aftrækkeren eller med håndsporing (knib), skyder den af sig selv.
   for (const holder of input.holders) {
     const item = holder.held;
     if (item.kind === 'blaster') {
       item.data.cooldown -= dt;
-      if (item.data.cooldown <= 0) {
+      const firing = holder.heldButton === 'select' || holder.using;
+      if (firing && item.data.cooldown <= 0) {
         item.data.cooldown = 0.3;
         tmp.copy(BLASTER_MUZZLE).applyQuaternion(item.mesh.quaternion).add(item.mesh.position);
         tmpDir.set(0, 0, -1).applyQuaternion(item.mesh.quaternion).multiplyScalar(11).add(holder.velocity);
         projectiles.fire(tmp, tmpDir);
         sound.play('blaster/shot', { at: tmp, volume: 0.6 });
+        holder.inputSource?.gamepad?.hapticActuators?.[0]?.pulse?.(0.4, 40); // et lille ryk i hånden
       }
     }
     // Slag mod robotten med noget i hånden.

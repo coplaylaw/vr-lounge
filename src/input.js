@@ -17,7 +17,8 @@ const _q = new THREE.Quaternion();
 const _s = new THREE.Vector3();
 
 // Greb og kast med controllere (grebknap eller aftrækker), hænder (knib) og mus i desktop-visningen.
-// Holder man noget, er den anden knap "brug" (fx kameraets udløser). Med musen er det højreklik eller mellemrum.
+// Holder man noget, er den anden knap "brug" (fx kameraets udløser eller kanonens aftrækker), og source.using
+// er sand, så længe den er trykket ned. Med musen er det højreklik eller mellemrum.
 // Alt regnes i stage-koordinater, så det passer med fysikken.
 export class Input {
   constructor({ renderer, scene, camera, stage, physics, onGrab, onRelease, onPull, onPoint, onClick, onUse }) {
@@ -76,10 +77,15 @@ export class Input {
       });
       for (const button of ['select', 'squeeze']) {
         controller.addEventListener(`${button}start`, () => {
-          if (source.held && source.heldButton !== button) this.onUse?.(source.held, source);
-          else this.grab(source, button);
+          if (source.held && source.heldButton !== button) {
+            source.using = true;
+            this.onUse?.(source.held, source);
+          } else this.grab(source, button);
         });
-        controller.addEventListener(`${button}end`, () => this.release(source, button));
+        controller.addEventListener(`${button}end`, () => {
+          if (button !== source.heldButton) source.using = false;
+          this.release(source, button);
+        });
       }
     }
 
@@ -99,7 +105,7 @@ export class Input {
       angularVelocity: new THREE.Vector3(),
       history: [],
       still: 0,
-      held: null, heldButton: null, offset: new THREE.Matrix4(),
+      held: null, heldButton: null, using: false, offset: new THREE.Matrix4(),
       pulling: null,
       target: null,
     };
@@ -170,6 +176,7 @@ export class Input {
     source.held = null;
     source.pulling = null;
     source.heldButton = null;
+    source.using = false;
     if (gentle) {
       this.physics.release(item, ZERO, ZERO);
       return;
@@ -215,13 +222,17 @@ export class Input {
     let look = null;
     const track = (e) => this.ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
     el.addEventListener('contextmenu', (e) => e.preventDefault());
-    addEventListener('keydown', (e) => {
-      if (e.code === 'Space' && this.mouse.held) this.onUse?.(this.mouse.held, this.mouse);
-    });
+    const use = (down) => {
+      if (!this.mouse.held) return;
+      if (down && !this.mouse.using) this.onUse?.(this.mouse.held, this.mouse);
+      this.mouse.using = down;
+    };
+    addEventListener('keydown', (e) => e.code === 'Space' && !e.repeat && use(true));
+    addEventListener('keyup', (e) => e.code === 'Space' && use(false));
     el.addEventListener('pointerdown', (e) => {
       track(e);
       if (e.button === 2) {
-        if (this.mouse.held) this.onUse?.(this.mouse.held, this.mouse);
+        use(true);
         return;
       }
       el.setPointerCapture(e.pointerId);
@@ -250,7 +261,10 @@ export class Input {
       look = { x: e.clientX, y: e.clientY };
     });
     el.addEventListener('pointerup', (e) => {
-      if (e.button === 2) return;
+      if (e.button === 2) {
+        use(false);
+        return;
+      }
       this.release(this.mouse, 'mouse');
       look = null;
     });

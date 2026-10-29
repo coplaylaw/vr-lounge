@@ -55,8 +55,8 @@ const TEXT = {
     },
 
     NEXT_DISK: {
-      title: 'Én til?',
-      body: 'Her er en diskette mere. Sæt den i maskinen og se, hvad den laver.',
+      title: '',
+      body: 'Her er en diskette mere. Sæt den i maskinen og se, hvad der sker.',
     },
 
     // En diskette pr. emne. Maskinen printer en ting, når disketten sættes i.
@@ -206,8 +206,8 @@ const TEXT = {
     },
 
     NEXT_DISK: {
-      title: 'Another one?',
-      body: 'Here is another disk. Put it in the machine and see what it does.',
+      title: '',
+      body: 'Here is another disk. Put it in the machine and see what happens.',
     },
 
     TOPICS: [
